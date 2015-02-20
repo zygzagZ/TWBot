@@ -1,6 +1,7 @@
 module.exports = {
-	Request: function(url, config, callback, data) {
-		if (!config) config = {};
+	Request: function(config) {
+		// url, callback, cookies, data
+		var url = config.url;
 		var protocolPos = url.indexOf('//');
 		var hostPos, hostname, path;
 		if (protocolPos >= 0) {
@@ -34,7 +35,7 @@ module.exports = {
 				'Accept': 'text/html,application/xhtml+xml,application/xml',
 				'DNT': 1,
 				'Cache-control':'no-cache',
-				'Host': 'pl'+globalConfig.world+'.plemiona.pl',
+				'Host': hostname,
 				'Pragma': 'no-cache',
 			}
 		}
