@@ -1,13 +1,5 @@
-var CookieManager = require('./classes/cookiemanager'),
-	globalConfig = require('./config.json'),
-	UserAgents = require('./classes/useragents'),
-	Net = require('./classes/net');
-	require('./classes/string');
+require('./classes/string');
+var globalConfig = require('./config.json'),
+	Player = require('./classes/player');
 	
-var cookies = new CookieManager();
-var userAgent = UserAgents[Math.floor(Math.random()*UserAgents.length)];
-
-Net.Request({
-	url:'http://pl'+globalConfig.world+'.plemiona.pl/login.php?user='+globalConfig.user+'&password='+globalConfig.password+'&utf-8',
-	cookies: cookies,
-});
+var player = new Player(globalConfig);

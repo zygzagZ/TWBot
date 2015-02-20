@@ -1,5 +1,5 @@
 var http = require('http');
-function Request(config) { // {url, cookies, callback, data, previousHost, previousDirectory,
+function Request(config) { // {url, cookies, callback, data, previousHost, previousDirectory, onRedirectTest
 	var protocolPos = config.url.indexOf('//');
 	var hostPos, hostname, path;
 	if (protocolPos >= 0) {
@@ -49,33 +49,37 @@ function Request(config) { // {url, cookies, callback, data, previousHost, previ
 	if (cookiesString.length) {
 		options.headers.Cookie = cookiesString;
 	}
-	var req = http.request(options, function(res) {
-		console.log('\n\nURL:' + config.url + '\nSTATUS: ' + res.statusCode);
-		console.log('HEADERS: ' + JSON.stringify(res.headers));
-		if (res.headers['set-cookie']) {
-			config.cookies.parse(res.headers['set-cookie']);
-		}
-		if (!config.noRedirects && res.headers.location) {
-			config.previousHost = hostname;
-			config.previousDirectory = directory;
-			config.url = res.headers.location;
-			return Request(config);
-		}
-		res.setEncoding('utf8');
-		res.on('data', function (chunk) {
-			console.log('BODY: ' + chunk.substr(0, 1000));
+	try {
+		var req = http.request(options, function(res) {
+			console.log('\n\nURL:' + config.url + '\nSTATUS: ' + res.statusCode);
+			console.log('HEADERS: ' + JSON.stringify(res.headers));
+			if (res.headers['set-cookie']) {
+				config.cookies.parse(res.headers['set-cookie']);
+			}
+			if (res.headers.location && config.onRedirectTest(res.headers.location)) {
+				config.previousHost = hostname;
+				config.previousDirectory = directory;
+				config.url = res.headers.location;
+				return Request(config);
+			}
+			res.setEncoding('utf8');
+			var data = '';
+			res.on('data', function (chunk) {
+				data += chunk;
+			}).on('end', function() {
+				if (config.callback) {
+					config.callback(data);
+				}
+			});
 		});
-	});
 
-	req.on('error', function(e) {
-		console.log('problem with request: ' + e.message);
-	});
-	req.end();
-		
+		req.on('error', function(e) {
+			console.log('problem with request: ' + e.message);
+		});
+		req.end();
+	} catch(e) {
+		console.error(e, JSON.stringify(options));
+	}
 }
 
-
-
-module.exports = {
-	Request: Request,
-}
+module.exports = Request;
