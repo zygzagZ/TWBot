@@ -1,23 +1,22 @@
 var http = require('http');
 function Request(config) { // {url, cookies, callback, data, previousHost, previousDirectory, onRedirectTest
-	var protocolPos = config.url.indexOf('//');
-	var hostPos, hostname, path;
+	var hostPos, hostname, path, url = config.url, protocolPos = url.indexOf('//');
 	if (protocolPos >= 0) {
-		config.url = config.url.substr(protocolPos+2);
-		hostPos = config.url.indexOf('/');
-		hostname = config.url;
+		url = url.substr(protocolPos+2);
+		hostPos = url.indexOf('/');
+		hostname = url;
 		path = '/';
 	} else {
 		hostname = config.previousHost;
-		if (!config.url.startsWith('/'))
-			path = config.previousDirectory + config.url;
-		else
-			path = config.url;
-		
+		if (!url.startsWith('/')) {
+			path = config.previousDirectory + url;
+		} else {
+			path = url;
+		}
 	}
 	if (hostPos >= 0) {
-		hostname = config.url.substr(0,hostPos);
-		path = config.url.substr(hostPos);
+		hostname = url.substr(0,hostPos);
+		path = url.substr(hostPos);
 	}
 	if (typeof(config.data) == 'Object') 
 		config.data = querystring.stringify(config.data);
@@ -51,16 +50,16 @@ function Request(config) { // {url, cookies, callback, data, previousHost, previ
 	}
 	try {
 		var req = http.request(options, function(res) {
-			console.log('\n\nURL:' + config.url + '\nSTATUS: ' + res.statusCode);
-			console.log('HEADERS: ' + JSON.stringify(res.headers));
+			console.log('URL:' + url + '\nSTATUS: ' + res.statusCode);
+			//console.log('HEADERS: ' + JSON.stringify(res.headers));
 			if (res.headers['set-cookie']) {
 				config.cookies.parse(res.headers['set-cookie']);
 			}
-			if (res.headers.location && config.onRedirectTest(res.headers.location)) {
-				config.previousHost = hostname;
-				config.previousDirectory = directory;
-				config.url = res.headers.location;
-				return Request(config);
+			if (res.headers.location) {
+				if (!config.onRedirectTest || config.onRedirectTest(res.headers.location)) {
+					Request({url: res.headers.location, previousHost: hostname, previousDirectory: directory, onRedirectTest: config.onRedirectTest, callback: config.callback, cookies: config.cookies});
+				}
+				return;
 			}
 			res.setEncoding('utf8');
 			var data = '';
