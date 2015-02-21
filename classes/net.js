@@ -1,5 +1,5 @@
 var http = require('http');
-function Request(config) { // {url, cookies, callback, data, previousHost, previousDirectory, onRedirectTest
+function Request(config) { // url, cookies, callback, data, previousHost, previousDirectory, onRedirectTest
 	var hostPos, hostname, path, url = config.url, protocolPos = url.indexOf('//');
 	if (protocolPos >= 0) {
 		url = url.substr(protocolPos+2);
@@ -44,15 +44,17 @@ function Request(config) { // {url, cookies, callback, data, previousHost, previ
 	    options.headers['Content-Length'] = config.data.length;
 	}
 		
-	var cookiesString = config.cookies.getCookiesString(hostname, directory);
-	if (cookiesString.length) {
-		options.headers.Cookie = cookiesString;
+	if (config.cookies) {
+		var cookiesString = config.cookies.getCookiesString(hostname, directory);
+		if (cookiesString.length) {
+			options.headers.Cookie = cookiesString;
+		}
 	}
 	try {
 		var req = http.request(options, function(res) {
 			console.log('URL:' + url + '\nSTATUS: ' + res.statusCode);
 			//console.log('HEADERS: ' + JSON.stringify(res.headers));
-			if (res.headers['set-cookie']) {
+			if (res.headers['set-cookie'] && config.cookies) {
 				config.cookies.parse(res.headers['set-cookie']);
 			}
 			if (res.headers.location) {

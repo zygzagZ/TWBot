@@ -1,5 +1,8 @@
 require('./classes/string');
-var globalConfig = require('./config.json'),
+var loadConfig = require('./classes/configloader'),
 	Player = require('./classes/player');
+
 	
-var player = new Player(globalConfig);
+loadConfig(function(config) {
+	var player = new Player(config);
+})
