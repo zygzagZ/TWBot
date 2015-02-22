@@ -1,10 +1,14 @@
-var CookieManager = require('./cookiemanager'),
-	UserAgents = require('./useragents'),
-	RawRequest = require('./net');
+var CookieManager = include('classes/cookiemanager'),
+	UserAgents = include('classes/useragents'),
+	RawRequest = include('classes/net');
 
-var VillageCoords = {}, VillageId = {};
+include('classes/utility');
+
+var VillageCoords = {}, VillageId = {}, lastVillageAddedTime = 0;
+
 	
 function Player(data) {
+	// console.log('config: ', JSON.stringify(data));
 	this.world = data.world;
 	this.username = data.username;
 	this.password = data.password;
@@ -49,15 +53,51 @@ Player.prototype = {
 					return BuildingsData[s] ? BuildingsData[s].level_next-1 : 0;
 				}
 				function whatToBuild() {
+					var building = '';
 					for (var i = 0; i < buildingOrder.length; i++) {
 						var d = buildingOrder[i].split(','), lvl;
 						if (d.length<2) d[1] = 1;
 						if (d[0] == 'eco') {
-							if (eco[1] < parseInt(d[1], 10))
-								return eco[0];
-						} else if (checkLevel(d[0]) < parseInt(d[1], 10))
-							return d[0];
+							if (eco[1] < parseInt(d[1], 10)) {
+								building = eco[0];
+								break;
+							}
+						} else if (checkLevel(d[0]) < parseInt(d[1], 10)) {
+							building = d[0];
+							break;
+						}
 					}
+					if (building == '') {
+						return;
+					}
+					while (building.length) {
+						var d = BuildingsData[building]
+							, err = d.error || ''
+							, needFarm = err.indexOf(BuildingsData.farm.name) >= 0// need to build farm first
+							, needStorage = err.indexOf(BuildingsData.storage.name) >= 0 // need to build storage first
+							;
+
+						console.log('wannabuild: ', building, 'err: ', err, 'needFarm: ', needFarm, 'needStorage: ', needStorage);
+
+						if (needFarm) {
+							building = 'farm';
+							continue;
+						} else if (needStorage) {
+							building = 'storage';
+							continue;
+						}
+
+						if (
+							(d.next_level > d.max_level) 
+							// TODO: add more checks
+						) {
+							building = ''; break;
+						}
+						// TODO: work out eventual bug - TW doesn't send all buildings, just these you can build
+						// TODO: add managing buildings using info from interface.php
+						break;
+					}
+					return building;
 				}
 				var id = whatToBuild();
 				if (BuildingsData[id] && BuildingsData[id].can_build && order_count < 2 && !BuildingsData[id].error) {
@@ -97,8 +137,17 @@ Player.prototype = {
 	},
 	parseInfo: function(str) {
 		console.log('parseInfo');
-		// TODO: parse overview data
-		return id;
+		var cs = str.indexOf('game_data = ')+12, ce = str.indexOf('};', cs)+1;
+		var data = JSON.parse(str.substr(cs, ce-cs));
+		this.data = {
+			player: data.player,
+			csrf: data.csrf,
+		}
+		var villageProperties = {lastupdate: new Date().getTime(),name:1,storage_max:1,pop_max:1,wood:1,stone:1,iron:1,pop:1,trader_away:1,buildings:1,player_id:1};
+		this.getVillage(data.village.x, data.village.y, data.village.id).extend(villageProperties.extend(true, data.village)); // copy only properties listed before
+
+		// TODO: parse and store event more overview data
+		return data.village.id;
 	},
 	refreshVillagesList: function() { // fetch overview_villages
 		console.log('refreshVillagesList');
@@ -114,23 +163,17 @@ Player.prototype = {
 			finishPos = str.lastIndexOf('</tr>', str.indexOf('</table>', startPos)),
 			tableString = str.substr(startPos, finishPos-startPos).split('</tr>');
 			
-		var managingTimeout = Math.random()*3000+5000;
 		for (var i = 0; i < tableString.length; i++) {
 			var s=tableString[i],cs=s.indexOf('data-id="')+9, ce = s.indexOf('"', cs+1), id = ~~s.substr(cs, ce-cs), d;
-			if (!VillageId[id]) {
-				d = {id: id, lastupdate: 0};
-				setTimeout(this.manage.bind(this, id), managingTimeout);
-				managingTimeout += Math.random()*3000+5000;
-			} else {
-				d = VillageId[id];
-			}
-			// scanning data from table
+
 			cs = s.indexOf('data-text="', ce+1)+11; ce = s.indexOf('"', cs+1);
-			d.name = s.substr(cs, ce-cs);
+			var village_name = s.substr(cs, ce-cs);
 			cs = s.lastIndexOf('(', s.indexOf('</span>', ce))+1; ce = s.indexOf(')', cs);
 			var coordsSplit = s.substr(cs, ce-cs).split('|');
-			d.x = ~~coordsSplit[0];
-			d.y = ~~coordsSplit[1];
+			var x = ~~coordsSplit[0], y = ~~coordsSplit[1];
+			d=this.getVillage(x,y,id);
+
+			d.name = village_name;
 			d.coords = [d.x, d.y];
 			cs = s.indexOf('<td>', ce)+4; ce = s.indexOf('</td>', cs);
 			d.points = ~~s.substr(cs, ce-cs);
@@ -142,16 +185,31 @@ Player.prototype = {
 			cs = s.indexOf('<td>', ce)+4; ce = s.indexOf('</td>', cs);
 			var farmdata = s.substr(cs, ce-cs).split('/');
 			d.farm={used:~~farmdata[0], total: ~~farmdata[1], free: farmdata[1]-farmdata[0]};
-			VillageCoords[d.x*1000+d.y] = d;
-			VillageId[d.id] = d;
 			console.log('Scanned village: ' + JSON.stringify(d));
 			// example: {"id":1337,"name":"My Very First Village","coordsText":"465|586","x":465,"y":586,"coords":[465,586],"points":1337,"res":[1000,1000,0],"storage":400000,"farm":{"used":239,"total":240,"free":1}}
 		}
 		
 	},
+	getVillage: function (x, y, id) {
+		var v = VillageId[id];
+		if (!v) {
+			v = {id: ~~id, lastupdate: 0, x:~~x, y:~~y};
+			VillageCoords[x*1000+y] = v;
+			VillageId[id] = v;
+
+			var now=new Date().getTime();
+			lastVillageAddedTime = Math.max(lastVillageAddedTime, now) + Math.random()*3000+5000; // schedule village managing
+			
+			setTimeout(this.manage.bind(this, id), lastVillageAddedTime-now);
+		}
+		return v;
+	},
 	request: function(config) { // request for page, basic checks for bot verification and session timeout
 		var self = this;
 		var callback = config.callback;
+		if (!config.cookies) {
+			config.cookies = this.cookies;
+		}
 		config.onRedirectTest = function(url) {
 			if (url.indexOf('sid_wrong.php') > 0) {
 				config.callback = callback;
@@ -164,7 +222,7 @@ Player.prototype = {
 			// TODO: check for bot verification
 			// TODO: check for account ban
 			// TODO: check for conservation works
-			// TODO: gather game_data info and store in this.data
+			self.parseInfo(str);
 			callback(str);
 		}
 		RawRequest(config);

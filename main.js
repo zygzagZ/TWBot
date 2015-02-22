@@ -1,6 +1,9 @@
-require('./classes/string');
-var loadConfig = require('./classes/configloader'),
-	Player = require('./classes/player');
+global.include = function(name) {
+    return require(__dirname + '/' + name);
+}
+include('classes/utility');
+var loadConfig = include('classes/configloader'),
+	Player = include('classes/player');
 
 	
 loadConfig(function(config) {

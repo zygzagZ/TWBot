@@ -1,5 +1,5 @@
-var globalConfig = require('./../config.json'),
-	RawRequest = require('./net');
+var globalConfig = include('config.json'),
+	RawRequest = include('classes/net');
 module.exports = function(callback) {
 	 if (globalConfig['email-link']) {
 		console.log('Rewriting config values from email-link...');
