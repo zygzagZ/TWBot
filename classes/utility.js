@@ -15,12 +15,13 @@ String.prototype.startsWith = function(q) {
 
 Object.defineProperty(Object.prototype, "extend", {
 	enumerable: false,
-	value: function(blocknew) {
+	value: function() {
+		var blockNew = arguments[0] && typeof(arguments[0]) == 'boolean';
 		for (var i in arguments) {
 			if (typeof(arguments[i]) != 'object') continue;
 			var dest = this, source = arguments[i],props = Object.getOwnPropertyNames(source);
 			props.forEach(function(name) {
-				if (blocknew && !(name in dest)) {
+				if (blockNew && !(name in dest)) {
 					return true;
 				}
 				var value = Object.getOwnPropertyDescriptor(source, name);

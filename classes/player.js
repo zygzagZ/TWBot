@@ -3,19 +3,47 @@ var CookieManager = include('classes/cookiemanager'),
 	RawRequest = include('classes/net');
 
 include('classes/utility');
+var hangoutsBot = require("hangouts-bot");
 
 var VillageCoords = {}, VillageId = {}, lastVillageAddedTime = 0;
 
 	
 function Player(data) {
 	// console.log('config: ', JSON.stringify(data));
+	var self = this;
 	this.world = data.world;
 	this.username = data.username;
 	this.password = data.password;
 	this.cookies = new CookieManager();
 	this.userAgent = UserAgents[Math.floor(Math.random()*UserAgents.length)];
-	this.data = {}; // TODO: store valuable values from game_data here
+	this.data = {villageList: {} }; // TODO: store valuable values from game_data here
 	this.login(this.refreshVillagesList.bind(this));
+	
+	
+	if (data.hangouts && data.hangouts.username && data.hangouts.password && data.hangouts.allow && data.hangouts.allow.length) {
+		
+		var bot = this.hangouts = new hangoutsBot(data.hangouts.username, data.hangouts.password);
+		bot.allow = data.hangouts.allow;
+		bot.context = {};
+		
+		bot.on('online', function() {
+		    console.log(self.username + ': Hangouts online.');
+		});
+
+		bot.on('message', function(from, message) {
+		    console.log(from + ">> " + message);
+			if (data.hangouts.allow.indexOf(from) < 0) {
+				if (!data.hangouts.suppressWarning) {
+					bot.sendMessage(from, 'Hello, ' + from + ', I am not allowed to communicate with you.');
+				}
+				return;
+			}
+			var msg = self.onHangoutsMessage(from, message);
+			if (msg && msg.length) {
+				bot.sendMessage(from, msg);
+			}
+		});
+	}
 }
 
 Player.prototype = {
@@ -139,12 +167,12 @@ Player.prototype = {
 		console.log('parseInfo');
 		var cs = str.indexOf('game_data = ')+12, ce = str.indexOf('};', cs)+1;
 		var data = JSON.parse(str.substr(cs, ce-cs));
-		this.data = {
+		this.data.extend({
 			player: data.player,
 			csrf: data.csrf,
-		}
+		});
 		var villageProperties = {lastupdate: new Date().getTime(),name:1,storage_max:1,pop_max:1,wood:1,stone:1,iron:1,pop:1,trader_away:1,buildings:1,player_id:1};
-		this.getVillage(data.village.x, data.village.y, data.village.id).extend(villageProperties.extend(true, data.village)); // copy only properties listed before
+		this.getVillage(data.village.x, data.village.y, data.village.id).extend(villageProperties.extend(true, data.village)); // copy only listed properties
 
 		// TODO: parse and store event more overview data
 		return data.village.id;
@@ -172,6 +200,7 @@ Player.prototype = {
 			var coordsSplit = s.substr(cs, ce-cs).split('|');
 			var x = ~~coordsSplit[0], y = ~~coordsSplit[1];
 			d=this.getVillage(x,y,id);
+			this.data.villageList[id] = d;
 
 			d.name = village_name;
 			d.coords = [d.x, d.y];
@@ -226,7 +255,63 @@ Player.prototype = {
 			callback(str);
 		}
 		RawRequest(config);
+	},
+	onHangoutsMessage: function(from, message) {
+		// TODO: parse hangouts commands and eventually respond
+		var data = this.hangouts.context[from];
+		if (!data) {
+			data = this.hangouts.context[from] = {};
+		}
+		
+		var cmd = message.match(/[a-z0-9]+/), t = message.split(" ");
+		if (cmd) {
+			cmd = cmd[0];
+		} else {
+			cmd = message;
+		}
+		if (!data.state) {
+			if (cmd == 'status') {
+				return "Runnin' hard! ;)";
+			} else if (cmd == 'eco') {
+				if (!data.village) {
+					return "You have to select village first!";
+				}
+				var v = VillageId[data.village].buildings;
+				if (!v) {
+					return "?|?|?";
+				}
+				return [v.wood, v.stone, v.iron].join('|');
+			} else if (cmd == 'village') {
+				var v = VillageId[data.village];
+				if (t[1] == 'list' || (!v && !t[1])) {
+					var msg = "Villages list: ", n = 0;
+					for (var i in this.data.villageList) {
+						msg += '\n' + (++n) + ': ' + this.data.villageList[i].name;
+					}
+					return msg;
+				} else if (!t[1] && v) {
+					return "You are currently in " + v.name;
+				} else {
+					if (t[1] == parseInt(t[1], 10)) {
+						var n = 0;
+						for (var i in this.data.villageList) {
+							if (++n == t[1]) {
+								data.village = i;
+								return "Village set: " + this.data.villageList[i].name;
+							}
+						}
+						return "Village not found!";
+					} else {
+						// TODO: find villages by name;
+					}
+					// set village
+				}
+			} else if (cmd == 'echo') {
+				return message;
+			}
+		} else {
+			// TODO: find villages by name (conflict)
+		}
 	}
-	
 }
 module.exports = Player;

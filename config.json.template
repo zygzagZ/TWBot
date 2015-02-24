@@ -1,3 +1,8 @@
 {
-	"email-link": "http://email.tribalwars.net/c/ (A long set of letters) "
+	"email-link": "http://email.tribalwars.net/c/ (A long set of letters) ",
+	"hangouts": {
+		"username": "login@gmail.com",
+		"password": "password to provided username",
+		"allow": ["your email where you will get notifications", "email to listen to commands from", "another allowed email", "etc."]
+	}
 }
