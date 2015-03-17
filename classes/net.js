@@ -71,6 +71,8 @@ function Request(config) { // url, cookies, callback, data, previousHost, previo
 				if (config.callback) {
 					config.callback(data);
 				}
+			}).on('error', function(a,b,c) {
+				console.log('onerror', a,b,c);
 			});
 		});
 

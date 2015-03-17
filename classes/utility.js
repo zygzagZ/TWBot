@@ -31,3 +31,36 @@ Object.defineProperty(Object.prototype, "extend", {
 		return this;
 	}
 });
+
+
+global.Utility = function(data) {
+	this.data = data;
+}
+Utility.prototype = {
+	buildTime: function(type, lv, hqlv) {
+		var b = this.data[type],
+			base = (lv < 3) ?
+			b.build_time * 1.18 * Math.pow(b.build_time_factor,-13) :
+			b.build_time * 1.18 * Math.pow(b.build_time_factor, lv - 1 - 14/(lv-1));
+		return Math.round(base * Math.pow(1.05, -hqlv));
+	},
+	factor: function(factor, type, lv) {
+		var b = this.data[type];
+		return Math.round(b[factor]*Math.pow(b[factor+'_factor'], lv-1));
+	},
+	farmPop: function(lv) {
+		return Math.round(240*Math.pow(1.172103,(lv - 1)));
+	},
+	storageCap: function(lv) {
+		return Math.round(1000*Math.pow(1.2294934,(lv - 1)));
+	},
+	production: function(lv) {
+		return lv ? Math.round(30*Math.pow(1.163118,(lv - 1))) : 0;
+	},
+	hideCap: function(lv) {
+		return Math.round(150*Math.pow(4/3,(lv - 1)));
+	},
+	marketCap: function(lv) {
+		return lv < 11 ? lv : (lv - 10)*(lv - 10) + 10;
+	}
+}
