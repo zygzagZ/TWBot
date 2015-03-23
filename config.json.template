@@ -1,10 +1,16 @@
 [{
+	"httpserver": {
+		"enabled": true,
+		"port": 39856
+	}
+},{
 	"email-link": "http://email.tribalwars.net/c/ (A long set of letters) ",
 	"hangouts": {
 		"username": "login@gmail.com",
 		"password": "password to provided username",
 		"allow": ["your email where you will get notifications", "email to listen to commands from", "another allowed email", "etc."]
-	}
+	},
+	"httppass": "should you use http server, enter the password to API here"
 }, {
 	"email-link": "another account"
 }]

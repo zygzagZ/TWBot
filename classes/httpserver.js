@@ -22,5 +22,5 @@ module.exports = function(data) {
 		res.writeHead(status, headers);
 		res.write(r);
 		res.end();
-	}).listen(39856);
+	}).listen(data.port);
 }

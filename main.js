@@ -9,7 +9,12 @@ var loadConfig = include('classes/configloader'),
 var players = [];	
 loadConfig(function(config) {
 	var l = 0;
-	for (var i = 0; i < config.length; i++) {
+	if (!config.length) {
+		console.error('No config length!');
+		return;
+	}
+	var g = config[0];
+	for (var i = 1; i < config.length; i++) {
 		console.log("Loading player " + config[i].username);
 		setTimeout(function(a) {
 			var p = new Player(a);
@@ -17,6 +22,10 @@ loadConfig(function(config) {
 		}, l, config[i]);
 		l += 1500 + Math.random()*2500;
 	}
-	httpServer({players:players});
+	if (g.httpserver && (typeof g.httpserver === 'Object')) {
+		if (false !== g.httpserver.enabled) {
+			httpServer(g.httpserver.extend({players:players}));
+		}
+	}
 })
 module.exports = players;

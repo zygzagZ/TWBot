@@ -52,7 +52,7 @@ function Request(config) { // url, cookies, callback, data, previousHost, previo
 	}
 	try {
 		var req = http.request(options, function(res) {
-			console.log('URL:' + url + '\nSTATUS: ' + res.statusCode);
+			console.log(res.statusCode,'||', url);
 			//console.log('HEADERS: ' + JSON.stringify(res.headers));
 			if (res.headers['set-cookie'] && config.cookies) {
 				config.cookies.parse(res.headers['set-cookie']);

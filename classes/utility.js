@@ -31,6 +31,12 @@ Object.defineProperty(Object.prototype, "extend", {
 		return this;
 	}
 });
+Object.defineProperty(Array.prototype, "random", {
+	enumerable: false,
+	value: function() {
+		return this[Math.floor(Math.random()*this.length)];
+	}
+})
 
 
 global.Utility = function(data) {
