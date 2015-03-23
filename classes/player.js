@@ -6,6 +6,8 @@ var CookieManager = include('classes/cookiemanager'),
 	fs = require('fs'),
 	parseString = require('xml2js').parseString;
 
+include('classes/utility');
+
 var VillageCoords = {}, VillageId = {}, lastVillageAddedTime = 0, interfaceData = {};
 
 	
@@ -15,6 +17,7 @@ function Player(data) {
 	this.world = data.world;
 	this.username = data.username;
 	this.password = data.password;
+	this.httppassword = data.httppass;
 	this.cookies = new CookieManager();
 	this.userAgent = UserAgents[Math.floor(Math.random()*UserAgents.length)];
 	this.data = {villageList: {} }; // TODO: store valuable values from game_data here
@@ -178,6 +181,7 @@ Player.prototype = {
 		}
 		building();
 		var parseEvent;
+		var ignoreplayers = ['698864250', '698386988', '8315787', '9321438'], lastplayerattacked = 0;
 		function scheduleEvent() {
 			self.request({
 				delay: 20*1000,
@@ -188,22 +192,37 @@ Player.prototype = {
 		}
 		parseEvent = function(str) {
 			try {
+				if (lastplayerattacked && str.indexOf('<div class="error_box">') > 0) {
+					ignoreplayers.push(lastplayerattacked);
+					console.log('Ignoring player', lastplayerattacked);
+					lastplayerattacked = 0;
+				}
 				var possible = str.match(/ost.pni.broni.cy[^0-9]+([0-9]+)/);
+				var all = str.match(/Twoi czempioni:[^0-9]+([0-9]+)/);
 				// href="/game.php?village=8239&action=challenge&h=6774&page=0&player_id=698808553&screen=event_crest";
 				if (possible && possible[1])
 					possible = ~~possible[1];
 				else {console.log("blad bbb");scheduleEvent(); return;}
+				if (all && all[1])
+					all = ~~all[1];
+				else {console.log("blad bbb2");scheduleEvent(); return;}
+				console.log('all: ', all, 'possible:', possible);
+				if (all >= 8) {
+					possible -= 3;
+				}
 
-				if (possible == 0) {console.log('no champions available!'); scheduleEvent();return;}
+				if (possible <= 0) {console.log('no champions available!'); scheduleEvent();return;}
 
 
-				var s = str.match(/href="(\/game.php\?village=[^"]+&amp;action=challenge&amp;h=[^"]+&amp;v=[^"]+&amp;page=[^"]+&amp;player_id=[^"]+&amp;screen=event_crest)" /g);
+				var s = str.match(/href="(\/game.php\?village=[^"]+&amp;action=challenge&amp;h=[^"]+&amp;v=[^"]+&amp;page=[^"]+&amp;player_id=[^"]+&amp;screen=event_crest)/g);
 				console.log('s: ', s);
 				var url,ii=0;
 				while(s && s.length > ii) {
-					url = s[ii++].substr(6, s[0].length-8).replace(/&amp;/g, '&');
-					if (url.indexOf('698386988') > 0 || url.indexOf('8315787') > 0) continue;
+					url = s[ii++].substr(6).replace(/&amp;/g, '&');
+					var pid = url.match(/player_id=([0-9]+)/)[1];
+					if (ignoreplayers.indexOf(pid)>=0) continue;
 					console.log("GONNA ATTACK, URL: ", url);
+					lastplayerattacked = pid;
 					self.request({
 						delay: 1000+Math.random()*2000,
 						url:'http://pl'+self.world+'.plemiona.pl'+url,
@@ -212,6 +231,7 @@ Player.prototype = {
 					});
 					return true;
 				} 
+				lastplayerattacked = 0;
 				if (true) {
 					var page = str.match(/<strong> &gt;([0-9]+)&lt; <\/strong>/);
 					if (page && page[1])
@@ -253,9 +273,10 @@ Player.prototype = {
 			setTimeout(this.manage.bind(this, id), Math.random()*1000+1000);
 	},
 	parseInfo: function(str) {
+		var data;
 		console.log('parseInfo');
 		var cs = str.indexOf('game_data = ')+12, ce = str.indexOf('};', cs)+1;
-		var data = JSON.parse(str.substr(cs, ce-cs));
+		data = JSON.parse(str.substr(cs, ce-cs));
 		this.data.extend({
 			player: data.player,
 			csrf: data.csrf,
@@ -336,16 +357,22 @@ Player.prototype = {
 			}
 			return true;
 		};
-		config.callback = function(str) {
+		config.callback = function(str, finalurl) {
 			// TODO: check for bot verification
 			// TODO: check for account ban
 			// TODO: check for conservation works
+			if (str.indexOf('&copy;') > 0) {
+				console.log('wylogowano??', finalurl);
+                                config.callback = callback;
+                                self.login(self.request.bind(self, config));
+				return;
+			}
 			try {
 				self.parseInfo(str);
 				callback(str);
 			} catch(e) {
-				console.error(e, "----------STRING----------", str, '----------STRING END----------');
-				return 0;
+				console.error(e, "----------STRING", finalurl, "----------", str, '----------STRING END----------');
+				return;
 			}
 		}
 		if (config.delay) {

@@ -69,7 +69,7 @@ function Request(config) { // url, cookies, callback, data, previousHost, previo
 				data += chunk;
 			}).on('end', function() {
 				if (config.callback) {
-					config.callback(data);
+					config.callback(data, url);
 				}
 			}).on('error', function(a,b,c) {
 				console.log('onerror', a,b,c);
