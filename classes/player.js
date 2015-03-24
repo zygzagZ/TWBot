@@ -2,7 +2,7 @@ var CookieManager = include('classes/cookiemanager'),
 	UserAgents = include('classes/useragents'),
 	RawRequest = include('classes/net'),
 	
-	hangoutsBot = require("hangouts-bot"),
+	hangoutsBot,
 	fs = require('fs'),
 	parseString = require('xml2js').parseString,
 	Village = include('classes/village');
@@ -46,7 +46,7 @@ function Player(data) {
 	}
 	
 	if (data.hangouts && data.hangouts.username && data.hangouts.password && data.hangouts.allow && data.hangouts.allow.length) {
-		
+		if (!hangoutsBot) hangoutsBot = require("hangouts-bot");
 		var bot = this.hangouts = new hangoutsBot(data.hangouts.username, data.hangouts.password);
 		bot.allow = data.hangouts.allow;
 		bot.context = {};
