@@ -23,5 +23,5 @@ module.exports = function(data) {
 		res.write(r);
 		res.end();
 	}).listen(data.port);
-	console.log('HTTP server listening on', data.port);
+	console.log('HTTP server listening on port', data.port);
 }

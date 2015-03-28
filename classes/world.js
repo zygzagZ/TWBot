@@ -74,13 +74,13 @@ World.prototype = {
 		// TODO: parse and store event more overview data
 		return data.village.id;
 	},
-	refreshVillagesList: function() { // fetch overview_villages
+	refreshVillagesList: function() {
 		this.request({
 			url:'http://pl'+this.world+'.plemiona.pl/game.php?screen=overview_villages',
 			callback: this.onVillagesList.bind(this),
 		});
 	},
-	onVillagesList: function(str) { // callback on overview_villages got
+	onVillagesList: function(str) {
 		var startPos = str.indexOf('</tr>', str.indexOf('overview_table')+1)+5,
 			finishPos = str.lastIndexOf('</tr>', str.indexOf('</table>', startPos)),
 			tableString = str.substr(startPos, finishPos-startPos).split('</tr>');
@@ -228,7 +228,7 @@ World.prototype = {
 		var self = this;
 		var village_id = this.getVaildVillageId();
 		var parseEvent;
-		var ignoreplayers = ['698864250', '698386988', '8315787', '9321438'], lastplayerattacked = 0;
+		var ignoreplayers = ['698864250', '698386988', '8315787'], lastplayerattacked = 0; // TODO: add storing this kind of data to config
 		function scheduleEvent() {
 			self.request({
 				delay: 20*1000,
