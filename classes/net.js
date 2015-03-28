@@ -1,4 +1,8 @@
 var http = require('http');
+http.globalAgent.maxSockets = 200;
+http.globalAgent.keepAliveMsecs = 20000;
+http.globalAgent.keepAlive = true;
+http.globalAgent.maxFreeSockets = 50;
 function Request(config) { // url, cookies, callback, data, previousHost, previousDirectory, onRedirectTest
 	var hostPos, hostname, path, url = config.url, protocolPos = url.indexOf('//');
 	if (protocolPos >= 0) {

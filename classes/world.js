@@ -231,7 +231,7 @@ World.prototype = {
 		var self = this;
 		var village_id = this.getVaildVillageId();
 		var parseEvent;
-		var ignoreplayers = ['698864250', '698386988', '8315787'], lastplayerattacked = 0; // TODO: add storing this kind of data to config
+		var ignoreplayers = ['698864250', '698386988', '8315787', '6825480'], lastplayerattacked = 0; // TODO: add storing this kind of data to config
 		function scheduleEvent() {
 			self.request({
 				delay: 20*1000,
