@@ -23,11 +23,10 @@ Village.prototype = {
 		// TODO: managing village
 		// TODO: refactor building queue
 		// TODO: instead of checking every 30 mins remember when to check (when needs for next building in queue are met)
-		var self = this.player;		
+		var player = this.player;		
 		function building() {
-			self.request({
-				url:'http://pl'+self.world+'.plemiona.pl/game.php?village='+village_id+'&screen=main',
-				cookies: self.cookies,
+			player.request({
+				url:'http://pl'+player.world+'.plemiona.pl/game.php?village='+village_id+'&screen=main',
 				callback: function(str) {
 					var order_count = 0;
 					if (str.indexOf('BuildingMain.order_count') > 0)
@@ -90,22 +89,19 @@ Village.prototype = {
 					var id = whatToBuild();
 					if (BuildingsData[id] && BuildingsData[id].can_build && order_count < 2 && !BuildingsData[id].error) {
 						console.log("BUILDING: " + id);
-						self.request({
-							url:'http://pl'+self.world+'.plemiona.pl' + BuildingsData[id].build_link,
-							cookies: self.cookies,
+						player.request({
+							url: BuildingsData[id].build_link,
 							callback: function(str) {
 								var buildtime = BuildingsData[id].build_time * 1000;
 								if (order_count < 2-1)
 									buildtime = Math.min(buildtime, Math.random()*5000+3000);
 								
-	//							setTimeout(self.manage.bind(self, village_id), buildtime);
 								setTimeout(building, buildtime);
 								console.log('set new build timeout in ' + buildtime/1000 + ' seconds.');
 							}
 						});
 						
 					} else { // check again in 30 minutes
-	//					setTimeout(self.manage.bind(self, village_id), 30*60*1000);
 						setTimeout(building, 30*60*1000);
 						console.log('set new check timeout in ' + 30*60 + ' seconds.');
 					}
@@ -113,7 +109,6 @@ Village.prototype = {
 			});
 		}
 		building();
-		//setTimeout(self.manage.bind(self, village_id), Math.random()*8*60*1000 + 7*60*1000);
 	},
 
 }

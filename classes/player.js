@@ -1,5 +1,4 @@
-var CookieManager = include('classes/cookiemanager'),
-	UserAgents = include('classes/useragents'),
+var UserAgents = include('classes/useragents'),
 	RawRequest = include('classes/net'),
 	
 	hangoutsBot,
@@ -12,10 +11,9 @@ function Player(data) {
 	this.password = data.password;
 	this.httppassword = data.httppass;
 	this.userAgent = UserAgents.random();
-	this.cookies = new CookieManager();
 	this.worlds = {};
 	for (var i = 0; i  < data.worlds.length; i++) {
-		var WorldData = {username:data.username, password:data.password, userAgent: this.userAgent, cookies: this.cookies, world: data.worlds[i]};
+		var WorldData = {username:data.username, password:data.password, userAgent: this.userAgent, world: data.worlds[i]};
 		this.worlds[data.worlds[i]] = new World(WorldData);
 	}
 	

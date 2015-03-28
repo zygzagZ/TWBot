@@ -2,7 +2,7 @@ function CookieManager() {
 	this.storage = {};
 }
 CookieManager.prototype = {
-	parse: function(t) {
+	parse: function(t,domain) {
 		var now = new Date().getTime();
 		for (var i = 0; i < t.length;i++) {
 			var q = t[i].split(';'),
@@ -11,7 +11,7 @@ CookieManager.prototype = {
 				value = main[2];
 			
 				 	 
-			this.storage[name]={value: value};
+			this.storage[name]={value: value, domain: domain};
 				
 			for (var x = 1; x < q.length; x++) {
 				var cur = q[x].trim().match(/([^=]+)=*(.*)/),

@@ -1,4 +1,5 @@
 var RawRequest = include('classes/net'),
+	CookieManager = include('classes/cookiemanager'),
 	fs = require('fs'),
 	parseString = require('xml2js').parseString,
 	Village = include('classes/village');
@@ -10,10 +11,11 @@ function World(data) {
 	this.username = data.username;
 	this.password = data.password;
 	this.userAgent = data.userAgent;
+	this.trace = '['+this.world + '/'+this.username+']';
 	
 	this.data = {villageList: {} }; // TODO: store valuable values from game_data here
 	this.world = data.world;
-	this.cookies = data.cookies;
+	this.cookies = new CookieManager();
 	this.champions;
 	this.login(this.refreshVillagesList.bind(this));
 	
@@ -43,10 +45,11 @@ function World(data) {
 
 World.prototype = {
 	login: function(success) {
-		console.log('logging in');	
+		var self = this;
+		console.log(this.trace,'logging in');	
 		this.request({
 			url:'http://pl'+this.world+'.plemiona.pl/login.php?user='+this.username+'&password='+this.password+'&utf-8',
-			callback: function(s) {console.log('login successful!'); success(s);}
+			callback: function(s) {console.log(self.trace, 'login successful!'); success(s);}
 		});
 	},
 	updateInfo: function(village_id) {
@@ -109,7 +112,7 @@ World.prototype = {
 			cs = s.indexOf('<td>', ce)+4; ce = s.indexOf('</td>', cs);
 			var farmdata = s.substr(cs, ce-cs).split('/');
 			d.farm={used:~~farmdata[0], total: ~~farmdata[1], free: farmdata[1]-farmdata[0]};
-			console.log('Scanned village:', d.id);
+			console.log(this.trace, 'Scanned village:', d.id);
 			// example: {"id":1337,"name":"My Very First Village","coordsText":"465|586","x":465,"y":586,"coords":[465,586],"points":1337,"res":[1000,1000,0],"storage":400000,"farm":{"used":239,"total":240,"free":1}}
 		}
 		
@@ -142,7 +145,7 @@ World.prototype = {
 			// TODO: check for account ban
 			// TODO: check for conservation works
 			if (str.indexOf('&copy;') > 0) {
-				console.log('logged out?', finalurl);
+				console.log(self.trace,'logged out?', finalurl);
 				config.callback = callback;
 				self.login(self.request.bind(self, config));
 				return;
@@ -151,7 +154,7 @@ World.prototype = {
 				self.parseInfo(str);
 				callback(str);
 			} catch(e) {
-				console.log(e, e.stack);
+				console.log(self.trace, e, e.stack);
 				console.error("----------STRING", finalurl, "----------", str, '----------STRING END----------');
 				return;
 			}
@@ -240,7 +243,7 @@ World.prototype = {
 			try {
 				if (lastplayerattacked && str.indexOf('<div class="error_box">') > 0) {
 					ignoreplayers.push(lastplayerattacked);
-					console.log('Ignoring player', lastplayerattacked);
+					console.log(self.trace, 'Ignoring player', lastplayerattacked);
 					lastplayerattacked = 0;
 				}
 				var possible = str.match(/ost.pni.broni.cy[^0-9]+([0-9]+)/);
@@ -248,15 +251,15 @@ World.prototype = {
 				// href="/game.php?village=8239&action=challenge&h=6774&page=0&player_id=698808553&screen=event_crest";
 				if (possible && possible[1])
 					possible = ~~possible[1];
-				else {console.log("blad bbb");scheduleEvent(); return;}
+				else {console.log(self.trace, "blad bbb");scheduleEvent(); return;}
 				if (all && all[1])
 					all = ~~all[1];
-				else {console.log("blad bbb2");scheduleEvent(); return;}
+				else {console.log(self.trace, "blad bbb2");scheduleEvent(); return;}
 				if (all >= 8) {
 					possible -= 3;
 				}
 
-				if (possible <= 0) {console.log('No available champions!'); scheduleEvent();return;}
+				if (possible <= 0) {console.log(self.trace, 'No available champions!'); scheduleEvent();return;}
 
 
 				var s = str.match(/href="(\/game.php\?village=[^"]+&amp;action=challenge&amp;h=[^"]+&amp;v=[^"]+&amp;page=[^"]+&amp;player_id=[^"]+&amp;screen=event_crest)/g);
@@ -265,7 +268,7 @@ World.prototype = {
 					url = s[ii++].substr(6).replace(/&amp;/g, '&');
 					var pid = url.match(/player_id=([0-9]+)/)[1];
 					if (ignoreplayers.indexOf(pid)>=0) continue;
-					console.log("Attacking player", url.match(/player_id=([0-9]+)/)[1]);
+					console.log(self.trace, "Attacking player", url.match(/player_id=([0-9]+)/)[1]);
 					lastplayerattacked = pid;
 					self.request({
 						delay: 1000+Math.random()*2000,
@@ -279,9 +282,9 @@ World.prototype = {
 					var page = str.match(/<strong> &gt;([0-9]+)&lt; <\/strong>/);
 					if (page && page[1])
 						page = ~~page[1];
-					else {console.log('blad cccc');scheduleEvent();return;}
+					else {console.log(self.trace, 'blad cccc');scheduleEvent();return;}
 					if (page > 14) {
-						console.log('All pages checked, no more trophies available!');
+						console.log(self.trace, 'All pages checked, no more trophies available!');
 						scheduleEvent();
 						return;
 					}

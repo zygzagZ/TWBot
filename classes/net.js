@@ -18,7 +18,7 @@ function Request(config) { // url, cookies, callback, data, previousHost, previo
 		hostname = url.substr(0,hostPos);
 		path = url.substr(hostPos);
 	}
-	if (typeof(config.data) == 'Object') 
+	if (typeof(config.data) === 'object') 
 		config.data = querystring.stringify(config.data);
 	
 	var pathDirectoryEnd = path.findLast('/', Math.min(path.find('?'), path.find('#'), path.length)), directory;
@@ -55,7 +55,7 @@ function Request(config) { // url, cookies, callback, data, previousHost, previo
 			console.log(res.statusCode,'||', url);
 			//console.log('HEADERS: ' + JSON.stringify(res.headers));
 			if (res.headers['set-cookie'] && config.cookies) {
-				config.cookies.parse(res.headers['set-cookie']);
+				config.cookies.parse(res.headers['set-cookie'], hostname);
 			}
 			if (res.headers.location) {
 				if (!config.onRedirectTest || config.onRedirectTest(res.headers.location)) {
