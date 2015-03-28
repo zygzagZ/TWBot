@@ -1,8 +1,8 @@
 var globalConfig = include('config.json'),
 	RawRequest = include('classes/net');
-module.exports = function(callback) {
+	
+module.exports = function(type, callback) { // TODO: manage various types of configs, eg global, per player and maybe even per village
 	function onFinish() {
-		
 		require('fs').writeFile('./config.json', JSON.stringify(globalConfig), function(err) {
 			if (err) throw err;
 			callback(globalConfig);
@@ -15,10 +15,13 @@ module.exports = function(callback) {
 			console.log('Rewriting config values from email-link...');
 			var url = node['email-link'];
 			if (url.indexOf('login.php') > 0 && url.indexOf('user=') > 0 && url.indexOf('password=') > 0) {
+				if (!node.world instanceof Array) {
+					node.world = [];
+				}
+				node.world.push(~~url.match(/http:\/\/[a-z]*([0-9]+)\./)[1]);
 				node.extend({
 					"username": url.match(/user=([^&]+)&/)[1],
 					"password": url.match(/password=([^&]+)&/)[1],
-					"world": ~~url.match(/http:\/\/[a-z]*([0-9]+)\./)[1], 
 				});
 				update = true;
 				delete node['email-link'];
@@ -42,10 +45,13 @@ module.exports = function(callback) {
 				},
 				onRedirectTest: function(url) {
 					if (url.indexOf('login.php') > 0 && url.indexOf('user=') > 0 && url.indexOf('password=') > 0) {
+						if (!node.world instanceof Array) {
+							node.world = [];
+						}
+						node.world.push(~~url.match(/http:\/\/[a-z]*([0-9]+)\./)[1]);
 						node.extend({
 							"username": url.match(/user=([^&]+)&/)[1],
 							"password": url.match(/password=([^&]+)&/)[1],
-							"world": ~~url.match(/http:\/\/[a-z]*([0-9]+)\./)[1], 
 						});
 						delete node['email-link'];
 						if (num-- == 1) {
@@ -58,9 +64,11 @@ module.exports = function(callback) {
 			})
 		}
 	}
-	if (update) {
-		onFinish()
-	} else {
-		callback(globalConfig);
+	if (num===0) {
+		if (update) {
+			onFinish()
+		} else {
+			callback(globalConfig);
+		}
 	}
 }

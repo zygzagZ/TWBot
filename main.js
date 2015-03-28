@@ -2,12 +2,12 @@ global.include = function(name) {
     return require(__dirname + '/' + name);
 }
 include('classes/utility');
-var loadConfig = include('classes/configloader'),
+var loadConfig = include('classes/configmanager'),
 	Player = include('classes/player'),
 	httpServer = include('classes/httpserver');
 
 var players = [];	
-loadConfig(function(config) {
+loadConfig('global', function(config) {
 	var l = 0;
 	if (!config.length) {
 		console.error('No config length!');
@@ -22,7 +22,7 @@ loadConfig(function(config) {
 		}, l, config[i]);
 		l += 1500 + Math.random()*2500;
 	}
-	if (g.httpserver && (typeof g.httpserver === 'Object')) {
+	if (g.httpserver && (typeof g.httpserver === 'object')) {
 		if (false !== g.httpserver.enabled) {
 			httpServer(g.httpserver.extend({players:players}));
 		}

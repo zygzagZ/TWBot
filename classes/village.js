@@ -7,7 +7,6 @@ function Village(id, player) {
 	player.villageManageTimeout = Math.max(player.villageManageTimeout || 0, now) + Math.random()*3000+5000; // schedule village managing
 		
 	setTimeout(this.manage.bind(this, id), player.villageManageTimeout-now);
-	console.log('got new village, setting timeout to', player.villageManageTimeout-now);
 
 	Object.defineProperty(this, "player", {
 		enumerable: false,
@@ -16,7 +15,6 @@ function Village(id, player) {
 }
 Village.prototype = {
 	manage: function() {
-		console.log('manage');
 		var village_id = this.id;
 		/*if (VillageId[village_id].lastupdate < new Date().getTime()+10*60*1000) {
 			this.updateInfo(village_id);
@@ -26,7 +24,6 @@ Village.prototype = {
 		// TODO: refactor building queue
 		// TODO: instead of checking every 30 mins remember when to check (when needs for next building in queue are met)
 		var self = this.player;		
-		//if (false) // temporarily disable building
 		function building() {
 			self.request({
 				url:'http://pl'+self.world+'.plemiona.pl/game.php?village='+village_id+'&screen=main',
@@ -116,82 +113,6 @@ Village.prototype = {
 			});
 		}
 		building();
-		var parseEvent;
-		var ignoreplayers = ['698864250', '698386988', '8315787', '9321438'], lastplayerattacked = 0;
-		function scheduleEvent() {
-			self.request({
-				delay: 20*1000,
-				url:'http://pl'+self.world+'.plemiona.pl/game.php?village='+village_id+'&screen=event_crest',
-				cookies: self.cookies,
-				callback: parseEvent
-			});
-		}
-		parseEvent = function(str) {
-			try {
-				if (lastplayerattacked && str.indexOf('<div class="error_box">') > 0) {
-					ignoreplayers.push(lastplayerattacked);
-					console.log('Ignoring player', lastplayerattacked);
-					lastplayerattacked = 0;
-				}
-				var possible = str.match(/ost.pni.broni.cy[^0-9]+([0-9]+)/);
-				var all = str.match(/Twoi czempioni:[^0-9]+([0-9]+)/);
-				// href="/game.php?village=8239&action=challenge&h=6774&page=0&player_id=698808553&screen=event_crest";
-				if (possible && possible[1])
-					possible = ~~possible[1];
-				else {console.log("blad bbb");scheduleEvent(); return;}
-				if (all && all[1])
-					all = ~~all[1];
-				else {console.log("blad bbb2");scheduleEvent(); return;}
-				console.log('all: ', all, 'possible:', possible);
-				if (all >= 8) {
-					possible -= 3;
-				}
-
-				if (possible <= 0) {console.log('no champions available!'); scheduleEvent();return;}
-
-
-				var s = str.match(/href="(\/game.php\?village=[^"]+&amp;action=challenge&amp;h=[^"]+&amp;v=[^"]+&amp;page=[^"]+&amp;player_id=[^"]+&amp;screen=event_crest)/g);
-				console.log('s: ', s);
-				var url,ii=0;
-				while(s && s.length > ii) {
-					url = s[ii++].substr(6).replace(/&amp;/g, '&');
-					var pid = url.match(/player_id=([0-9]+)/)[1];
-					if (ignoreplayers.indexOf(pid)>=0) continue;
-					console.log("GONNA ATTACK, URL: ", url);
-					lastplayerattacked = pid;
-					self.request({
-						delay: 1000+Math.random()*2000,
-						url:'http://pl'+self.world+'.plemiona.pl'+url,
-						cookies: self.cookies,
-						callback: parseEvent
-					});
-					return true;
-				} 
-				lastplayerattacked = 0;
-				if (true) {
-					var page = str.match(/<strong> &gt;([0-9]+)&lt; <\/strong>/);
-					if (page && page[1])
-						page = ~~page[1];
-					else {console.log('blad cccc');scheduleEvent();return;}
-					if (page > 14) {
-						console.log('wszystkie strony sprawdzone, za malo godel! XD');
-						scheduleEvent();
-						return;
-					}
-					console.log('pagenow: ', page);
-					self.request({
-						delay: 1000+Math.random()*2000,
-						url:'http://pl'+self.world+'.plemiona.pl/game.php?village='+village_id+'&page='+(page)+'&screen=event_crest',
-						cookies: self.cookies,
-						callback: parseEvent
-					});
-				}
-			} catch(e) {
-				console.error(e);
-				scheduleEvent();
-			}
-		}
-		scheduleEvent();
 		//setTimeout(self.manage.bind(self, village_id), Math.random()*8*60*1000 + 7*60*1000);
 	},
 

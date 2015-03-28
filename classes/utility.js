@@ -70,3 +70,11 @@ Utility.prototype = {
 		return lv < 11 ? lv : (lv - 10)*(lv - 10) + 10;
 	}
 }
+global.rand = function(a,b) {
+	if (a>b) {
+		var c = a;
+		a = b;
+		b = c;
+	}
+	return a+Math.floor(Math.random()*(b-a));
+}
