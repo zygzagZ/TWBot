@@ -11,10 +11,10 @@ function World(data) {
 	this.username = data.username;
 	this.password = data.password;
 	this.userAgent = data.userAgent;
-	this.trace = '['+this.world + '/'+this.username+']';
 	
 	this.data = {villageList: {} }; // TODO: store valuable values from game_data here
 	this.world = data.world;
+	this.trace = '['+this.world + '/'+this.username+']';
 	this.cookies = new CookieManager();
 	this.champions;
 	this.login(this.refreshVillagesList.bind(this));
