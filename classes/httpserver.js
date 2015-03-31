@@ -8,7 +8,7 @@ module.exports = function(data) {
 				for (var i in data.players) {
 					if (data.players[i].username !== req.headers.player) {continue;}
 					if (data.players[i].httppassword !== req.headers.playerpass) {break;}
-					var world = ~~req.headers.world;
+					var world = req.headers.world;
 					if (!data.players[i].worlds[world]) {r+='No such world!'; status = 405; return;}
 					var c = data.players[i].worlds[world].cookies.getCookiesString(req.headers.playerdomain, '/');
 					r+=(c);
