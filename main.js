@@ -1,7 +1,7 @@
 #!/usr/bin/nodejs
 global.include = function(name) {
     return require(__dirname + '/' + name);
-}
+};
 include('classes/utility');
 var loadConfig = include('classes/configmanager'),
 	Player = include('classes/player'),
@@ -16,11 +16,11 @@ loadConfig('global', function(config) {
 	}
 	var g = config[0];
 	for (var i = 1; i < config.length; i++) {
-		console.log("Loading player " + config[i].username);
+		console.log('Loading player ' + config[i].username);
 		setTimeout(function(a) {
 			var p = new Player(a);
 			players.push(p);
-		}, l, config[i]);
+		}, l, config[i].extend({settings: {}}));
 		l += 1500 + Math.random()*2500;
 	}
 	if (g.httpserver && (typeof g.httpserver === 'object')) {
@@ -28,5 +28,5 @@ loadConfig('global', function(config) {
 			httpServer(g.httpserver.extend({players:players}));
 		}
 	}
-})
+});
 module.exports = players;

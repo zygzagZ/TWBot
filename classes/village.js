@@ -1,6 +1,6 @@
 var Villages = {};
 function Village(id, player) {
-	this.id = ~~id;
+	this.id = parseInt(id, 10);
 	this.lastupdate = 0;
 	
 	var now=new Date().getTime();
@@ -8,7 +8,7 @@ function Village(id, player) {
 		
 	setTimeout(this.manage.bind(this, id), player.villageManageTimeout-now);
 
-	Object.defineProperty(this, "player", {
+	Object.defineProperty(this, 'player', {
 		enumerable: false,
 		value: player
 	});
@@ -29,8 +29,9 @@ Village.prototype = {
 				url:'http://pl'+player.world+'.plemiona.pl/game.php?village='+village_id+'&screen=main',
 				callback: function(str) {
 					var order_count = 0;
-					if (str.indexOf('BuildingMain.order_count') > 0)
-						order_count = ~~str.match(/BuildingMain.order_count = (\d+)/)[1];
+					if (str.indexOf('BuildingMain.order_count') > 0) {
+						order_count = parseInt(str.match(/BuildingMain.order_count = (\d+)/)[1], 10);
+					}
 					var cs = str.indexOf('BuildingMain.buildings = ')+24, ce = str.indexOf('</script>', cs);
 					var BuildingsData = JSON.parse(str.substr(cs, ce-cs-2).replace(/&amp;/g, '&'));
 					var eco = [BuildingsData.wood.level_next-1, BuildingsData.stone.level_next-1, BuildingsData.iron.level_next-1];
@@ -41,10 +42,13 @@ Village.prototype = {
 					}
 					function whatToBuild() {
 						var building = '';
+						var d;
 						for (var i = 0; i < buildingOrder.length; i++) {
-							var d = buildingOrder[i].split(','), lvl;
-							if (d.length<2) d[1] = 1;
-							if (d[0] == 'eco') {
+							d = buildingOrder[i].split(',');
+							if (d.length<2) {
+								d[1] = 1;
+							}
+							if (d[0] === 'eco') {
 								if (eco[1] < parseInt(d[1], 10)) {
 									building = eco[0];
 									break;
@@ -54,15 +58,15 @@ Village.prototype = {
 								break;
 							}
 						}
-						if (building == '') {
+						if (building === '') {
 							return;
 						}
 						while (building.length) {
-							var d = BuildingsData[building]
-								, err = d.error || ''
-								, needFarm = err.indexOf(BuildingsData.farm.name) >= 0// need to build farm first
-								, needStorage = err.indexOf(BuildingsData.storage.name) >= 0 // need to build storage first
-								;
+							d = BuildingsData[building];
+							var err = d.error || '',
+								needFarm = err.indexOf(BuildingsData.farm.name) >= 0, // need to build farm first
+								needStorage = err.indexOf(BuildingsData.storage.name) >= 0; // need to build storage first
+								
 
 							console.log('wannabuild: ', building, 'err: ', err, 'needFarm: ', needFarm, 'needStorage: ', needStorage);
 
@@ -88,13 +92,14 @@ Village.prototype = {
 					}
 					var id = whatToBuild();
 					if (BuildingsData[id] && BuildingsData[id].can_build && order_count < 2 && !BuildingsData[id].error) {
-						console.log("BUILDING: " + id);
+						console.log('BUILDING: ' + id);
 						player.request({
 							url: BuildingsData[id].build_link,
-							callback: function(str) {
+							callback: function() {
 								var buildtime = BuildingsData[id].build_time * 1000;
-								if (order_count < 2-1)
+								if (order_count < 2-1) {
 									buildtime = Math.min(buildtime, Math.random()*5000+3000);
+								}
 								
 								setTimeout(building, buildtime);
 								console.log('set new build timeout in ' + buildtime/1000 + ' seconds.');
@@ -111,7 +116,7 @@ Village.prototype = {
 		building();
 	},
 
-}
+};
 module.exports = function(id,player) {
 	var w = Villages[player.world];
 	if (!w) {

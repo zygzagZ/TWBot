@@ -108,4 +108,4 @@ module.exports = [
 'Mozilla/4.0 (Compatible; MSIE 8.0; Windows NT 5.2; Trident/6.0)',
 'Mozilla/4.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/5.0)',
 'Mozilla/1.22 (compatible; MSIE 10.0; Windows 3.1)',
-]
+];

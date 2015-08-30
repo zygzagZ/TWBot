@@ -1,47 +1,82 @@
 String.prototype.find = function(q,w) {
 	var pos = this.indexOf(q,w);
-	if (pos == -1) pos = Infinity;
+	if (pos === -1) { pos = Infinity; }
 	return pos;
-}
+};
 String.prototype.findLast = function(q,w) {
 	var pos = this.lastIndexOf(q,w);
-	if (pos == -1) pos = Infinity;
+	if (pos === -1) { pos = Infinity; }
 	return pos;
-}
+};
 String.prototype.startsWith = function(q) {
-	if (this.length < q.length) return false;
-	return this.substr(0, q.length) == q;
+	if (this.length < q.length) { return false; }
+	return this.substr(0, q.length) === q;
+};
+
+String.prototype.distance = function (b) { //levenshtein algorithm
+	var a = this;
+	if (a === b) { return 0; }
+
+	var aLen = a.length, bLen = b.length;
+
+	if (!aLen) { return bLen; }
+	if (!bLen) { return aLen; }
+
+	var len = aLen + 1,
+		v0 = new Array(len),
+		v1 = new Array(len),
+		c2, min, tmp,
+		i = 0,
+		j = 0;
+
+	while(i < len) { v0[i] = i++; }
+
+	while(j < bLen) {
+		v1[0] = j + 1;
+		c2 = b.charAt(j++);
+		i = 0;
+
+		while(i < aLen) {
+			min = v0[i] - (a.charAt(i) === c2 ? 1 : 0);
+			if (v1[i] < min) { min = v1[i]; }
+			if (v0[++i] < min) { min = v0[i]; }
+			v1[i] = min + 1;
+		}
+
+		tmp = v0; v0 = v1; v1 = tmp;
+	}
+	return v0[aLen];
+};
+
+function extendIterateFunction(source, dest, blockNew, name) {
+	if (blockNew && !(name in dest)) { return true; }
+	var value = Object.getOwnPropertyDescriptor(source, name);
+	Object.defineProperty(dest, name, value);
 }
 
-Object.defineProperty(Object.prototype, "extend", {
+Object.defineProperty(Object.prototype, 'extend', {
 	enumerable: false,
 	value: function() {
-		var blockNew = arguments[0] && typeof(arguments[0]) == 'boolean';
+		var blockNew = arguments[0] && typeof(arguments[0]) === 'boolean';
 		for (var i in arguments) {
-			if (typeof(arguments[i]) != 'object') continue;
+			if (typeof(arguments[i]) !== 'object') { continue; }
 			var dest = this, source = arguments[i],props = Object.getOwnPropertyNames(source);
-			props.forEach(function(name) {
-				if (blockNew && !(name in dest)) {
-					return true;
-				}
-				var value = Object.getOwnPropertyDescriptor(source, name);
-				Object.defineProperty(dest, name, value);
-			});
+			props.forEach(extendIterateFunction.bind(null, source, dest, blockNew));
 		}
 		return this;
 	}
 });
-Object.defineProperty(Array.prototype, "random", {
+Object.defineProperty(Array.prototype, 'random', {
 	enumerable: false,
 	value: function() {
 		return this[Math.floor(Math.random()*this.length)];
 	}
-})
+});
 
 
 global.Utility = function(data) {
 	this.data = data;
-}
+};
 Utility.prototype = {
 	buildTime: function(type, lv, hqlv) {
 		var b = this.data[type],
@@ -69,7 +104,7 @@ Utility.prototype = {
 	marketCap: function(lv) {
 		return lv < 11 ? lv : (lv - 10)*(lv - 10) + 10;
 	}
-}
+};
 global.rand = function(a,b) {
 	if (a>b) {
 		var c = a;
@@ -77,4 +112,4 @@ global.rand = function(a,b) {
 		b = c;
 	}
 	return a+Math.floor(Math.random()*(b-a));
-}
+};

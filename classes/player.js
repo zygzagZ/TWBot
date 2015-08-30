@@ -1,7 +1,7 @@
 var UserAgents = include('classes/useragents'),
 	RawRequest = include('classes/net'),
 	
-	hangoutsBot,
+	hangoutsBot = require('hangouts-bot'),
 	World = include('classes/world');
 
 	
@@ -11,16 +11,15 @@ function Player(data) {
 	this.password = data.password;
 	this.httppassword = data.httppass;
 	this.userAgent = UserAgents.random();
-	var worldsBuilder = data.worlds.join(', ')
+	
+	var worldsBuilder = data.worlds.join(', ');
 	this.worlds = {toString:function(){return worldsBuilder;}};
-	console.log("WORLDS: ", worldsBuilder);
 	for (var i = 0; i  < data.worlds.length; i++) {
-		var WorldData = {username:data.username, password:data.password, userAgent: this.userAgent, world: data.worlds[i]};
+		var WorldData = {username:data.username, password:data.password, userAgent: this.userAgent, world: data.worlds[i], player:this};
 		this.worlds[data.worlds[i]] = new World(WorldData);
 	}
-	
+
 	if (data.hangouts && data.hangouts.username && data.hangouts.password && data.hangouts.allow && data.hangouts.allow.length) {
-		if (!hangoutsBot) hangoutsBot = require("hangouts-bot");
 		var bot = this.hangouts = new hangoutsBot(data.hangouts.username, data.hangouts.password);
 		bot.allow = data.hangouts.allow;
 		bot.context = {};
@@ -30,7 +29,7 @@ function Player(data) {
 		});
 
 		bot.on('message', function(from, message) {
-		    	console.log(from + ">> " + message);
+		    	console.log(from + '>> ' + message);
 			if (data.hangouts.allow.indexOf(from.split('/')[0]) < 0) {
 				if (!data.hangouts.suppressWarning) {
 					bot.sendMessage(from, 'Hello, ' + from + ', I am not allowed to communicate with you.');
@@ -43,13 +42,14 @@ function Player(data) {
 			}
 		});
 	}
+
 }
 
 Player.prototype = {
 	onHangoutsMessage: function(from, message) {
 		// TODO: parse hangouts commands and eventually respond
 		var data = this.hangouts.context[from];
-		if (typeof data != 'object') {
+		if (typeof data !== 'object') {
 			data = this.hangouts.context[from] = {};
 		}
 		message=message.toLowerCase();
@@ -58,7 +58,7 @@ Player.prototype = {
 				message = message.substr(6);
 			}
 			if (!this.worlds[message]) {
-				return "You have to select world first! (" + this.worlds + ')';
+				return 'You have to select world first! (' + this.worlds + ')';
 			} else {
 				data.worldid = message;
 				if (!this.hangouts.context[from][data.worldid]) {
@@ -68,6 +68,9 @@ Player.prototype = {
 			}
 		}
 		return this.worlds[data.worldid].onHangoutsMessage(from, message, this.hangouts.context[from][data.worldid]);
+	},
+	notify: function(what) {
+		return this.hangouts ? this.hangouts.sendMessage(this.hangouts.allow[0], what) : false;
 	}
-}
+};
 module.exports = Player;

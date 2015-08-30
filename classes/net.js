@@ -22,8 +22,9 @@ function Request(config) { // url, cookies, callback, data, previousHost, previo
 		hostname = url.substr(0,hostPos);
 		path = url.substr(hostPos);
 	}
-	if (typeof(config.data) === 'object') 
+	if (typeof(config.data) === 'object') {
 		config.data = querystring.stringify(config.data);
+	}
 	
 	var pathDirectoryEnd = path.findLast('/', Math.min(path.find('?'), path.find('#'), path.length)), directory;
 	directory=path.substr(0, pathDirectoryEnd+1);
@@ -39,9 +40,10 @@ function Request(config) { // url, cookies, callback, data, previousHost, previo
 			'Host': hostname,
 			'Pragma': 'no-cache',
 		}
-	}
-	if (config.userAgent && config.userAgent.length)
+	};
+	if (config.userAgent && config.userAgent.length) {
 		options.headers['User-Agent'] = config.userAgent;
+	}
 	
 	if (config.data) {
 		options.headers['Content-Type'] = 'application/x-www-form-urlencoded';

@@ -17,15 +17,16 @@ CookieManager.prototype = {
 				var cur = q[x].trim().match(/([^=]+)=*(.*)/),
 					cname = cur[1].toLowerCase(),
 					cval = cur[2];
-				if (cname == 'path') {
+				if (cname === 'path') {
 					this.storage[name].path = cval;
-				} else if (cname == 'expires') {
+				} else if (cname === 'expires') {
 					var d = new Date(cval).getTime();
-					if (d > now)
+					if (d > now) {
 						this.storage[name].expires = d;
-				} else if (cname == 'max-age') {
+					}
+				} else if (cname === 'max-age') {
 					this.storage[name].expires = now + parseInt(cval, 10)*1000;
-				} else if (cname == 'domain') {
+				} else if (cname === 'domain') {
 					this.storage[name].domain = cval;
 				}
 			}
@@ -40,11 +41,11 @@ CookieManager.prototype = {
 					continue;
 				}
 			}
-			if ( (!this.storage[i].path || this.storage[i].path == path) && (!this.storage[i].domain || host.indexOf(this.storage[i].domain) >= 0) ) {
+			if ( (!this.storage[i].path || this.storage[i].path === path) && (!this.storage[i].domain || host.indexOf(this.storage[i].domain) >= 0) ) {
 				result += i + '=' + this.storage[i].value + '; ';
 			}
 		}	
 		return result;
 	}
-}
+};
 module.exports = CookieManager;
