@@ -40,7 +40,7 @@ function World(data) {
 		}
 	}
 	
-	setTimeout(this.initTrophies.bind(this), rand(10000, 20000));
+	//setTimeout(this.initTrophies.bind(this), rand(10000, 20000));
 }
 
 World.prototype = {

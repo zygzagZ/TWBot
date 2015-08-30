@@ -45,10 +45,10 @@ module.exports = function(type, callback) { // TODO: manage various types of con
 				},
 				onRedirectTest: function(url) {
 					if (url.indexOf('login.php') > 0 && url.indexOf('user=') > 0 && url.indexOf('password=') > 0) {
-						if (!node.world instanceof Array) {
-							node.world = [];
+						if (!node.worlds instanceof Array) {
+							node.worlds = [];
 						}
-						node.world.push(~~url.match(/http:\/\/[a-z]*([0-9]+)\./)[1]);
+						node.worlds.push(~~url.match(/http:\/\/[a-z]*([0-9]+)\./)[1]);
 						node.extend({
 							"username": url.match(/user=([^&]+)&/)[1],
 							"password": url.match(/password=([^&]+)&/)[1],

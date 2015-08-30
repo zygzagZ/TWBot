@@ -1,3 +1,4 @@
+#!/usr/bin/nodejs
 global.include = function(name) {
     return require(__dirname + '/' + name);
 }

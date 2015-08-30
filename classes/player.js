@@ -11,7 +11,9 @@ function Player(data) {
 	this.password = data.password;
 	this.httppassword = data.httppass;
 	this.userAgent = UserAgents.random();
-	this.worlds = {};
+	var worldsBuilder = data.worlds.join(', ')
+	this.worlds = {toString:function(){return worldsBuilder;}};
+	console.log("WORLDS: ", worldsBuilder);
 	for (var i = 0; i  < data.worlds.length; i++) {
 		var WorldData = {username:data.username, password:data.password, userAgent: this.userAgent, world: data.worlds[i]};
 		this.worlds[data.worlds[i]] = new World(WorldData);
@@ -52,26 +54,18 @@ Player.prototype = {
 		}
 		message=message.toLowerCase();
 		if (!data.worldid) {
-			if (!this.worlds[message])
-				return "You have to select world first! (" + this.worlds.join(', ') + ')';
-			else {
+			if (message.startsWith('world ')) {
+				message = message.substr(6);
+			}
+			if (!this.worlds[message]) {
+				return "You have to select world first! (" + this.worlds + ')';
+			} else {
 				data.worldid = message;
 				if (!this.hangouts.context[from][data.worldid]) {
 					this.hangouts.context[from][data.worldid] = {};
 				}
 				return 'Selected world "'+data.worldid+'"';
 			}
-		}
-		if (message.startsWith('world ')) {
-			var world = message.substr(6);
-			if (!this.worlds[world]) {
-				return "No such world! (" + this.worlds.join(', ') + ')';
-			}
-			data.worldid = world;
-			if (!this.hangouts.context[from][data.worldid]) {
-				this.hangouts.context[from][data.worldid] = {};
-			}
-			return 'Selected world "'+data.worldid+'"';
 		}
 		return this.worlds[data.worldid].onHangoutsMessage(from, message, this.hangouts.context[from][data.worldid]);
 	}
