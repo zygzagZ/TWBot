@@ -1,4 +1,5 @@
 var Villages = {};
+
 function Village(id, player) {
 	this.id = parseInt(id, 10);
 	this.lastupdate = 0;
@@ -13,6 +14,7 @@ function Village(id, player) {
 		value: player
 	});
 }
+
 Village.prototype = {
 	manage: function() {
 		var village_id = this.id;
@@ -117,7 +119,8 @@ Village.prototype = {
 	},
 
 };
-module.exports = function(id,player) {
+
+function VillageFactory(id,player) {
 	var w = Villages[player.world];
 	if (!w) {
 		w = Villages[player.world] = {};
@@ -127,4 +130,33 @@ module.exports = function(id,player) {
 		v = w[id] = new Village(id, player);
 	}
 	return v;
+}
+
+VillageFactory.List = function() {
+	Object.defineProperty(this, 'length', {
+		value: 0,
+		writable: true
+	});
+	return this;
 };
+VillageFactory.List.prototype = {};
+
+Object.defineProperty(VillageFactory.List.prototype, 'insert', {
+	value: function(v) {
+		if (!this[v.id]) {
+			this.length++;
+		}
+		this[v.id] = v;
+		return v;
+	}
+});
+Object.defineProperty(VillageFactory.List.prototype, 'remove', {
+	value: function(v) {
+		if (this[v.id]) {
+			this.length--;
+			delete this[v.id];
+		}
+	}
+});
+
+module.exports = VillageFactory;

@@ -13,7 +13,8 @@ function World(data) {
 	this.userAgent = data.userAgent;
 	this.player = data.player;
 
-	this.data = {villageList: {}, settings: data}; // TODO: store valuable values from game_data here
+	this.data = {villageList: new Village.List(), settings: data}; // TODO: store valuable values from game_data here
+
 	this.world = data.world;
 	this.trace = '['+this.world + '/'+this.username+']';
 	this.cookies = new CookieManager();
@@ -99,7 +100,7 @@ World.prototype = {
 			var coordsSplit = s.substr(cs, ce-cs).split('|');
 			var x = parseInt(coordsSplit[0], 10), y = parseInt(coordsSplit[1], 10);
 			d=this.getVillage(id);
-			this.data.villageList[id] = d;
+			this.data.villageList.insert(d);
 			d.x=x;
 			d.y=y;
 			d.name = village_name;
@@ -181,6 +182,13 @@ World.prototype = {
 			cmd = cmd[0];
 		} else {
 			cmd = message;
+		}
+		if (!data.village && this.data.villageList.length === 1) {
+			for (var firstVill in this.data.villageList) {
+				data.village = this.data.villageList[firstVill];
+				this.notify('Automatically selecting village ' + data.village.name);
+				break;
+			}
 		}
 		if (!data.state) {
 			if (cmd === 'status') {
