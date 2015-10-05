@@ -1,5 +1,10 @@
 var http = require('http');
 
+function parseHttpRequest(p, data) {
+	var ret=p.cookies.getCookiesString(data.playerdomain, '/');
+	return ret;
+}
+
 module.exports = function(data) {
 	http.createServer(function (req, res) {
 		var status = 200, headers = {'Content-Type': 'text/plain'}, r = '';
@@ -10,8 +15,12 @@ module.exports = function(data) {
 					if (data.players[i].httppassword !== req.headers.playerpass) {break;}
 					var world = req.headers.world;
 					if (!data.players[i].worlds[world]) {r+='No such world!'; status = 405; return;}
-					var c = data.players[i].worlds[world].cookies.getCookiesString(req.headers.playerdomain, '/');
-					r+=(c);
+					var d = {};
+					try {
+						d = JSON.parse(req.url.substr(1));
+					} catch(e) {}
+					d.playerdomain = req.headers.playerdomain;
+					r += parseHttpRequest(data.players[i].worlds[world], d);
 					return;
 				}
 				r+=('Player not found!');

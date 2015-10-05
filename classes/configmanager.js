@@ -2,7 +2,34 @@ var globalConfig = include('config.json'),
 	RawRequest = include('classes/net'),
 	fs = require('fs');
 
-module.exports = function(type, callback) { // TODO: manage various types of configs, eg global, per player and maybe even per village
+var configs = {};
+function save() {
+	for (var fileName in configs) {
+		fs.writeFileSync(fileName, JSON.stringify(configs[fileName]));
+	}
+}
+process.on('SIGINT', process.exit.bind(process, 0));
+process.on('exit', save);
+
+function getConfigFileName(type) {
+	if (type[0] === 'p') {
+		return './data/player.' + type.substr(1) + '.json';
+	} else if (type[0] === 'w') {
+		return './data/world.' + type.substr(1) + '.json';
+	}
+}
+function loadConfig(type, callback) {
+	var fileName = getConfigFileName(type);
+	fs.readFile(fileName, function(error, content) {
+		var config = {};
+		if (!error) {
+			config = JSON.parse(content);
+		} 
+		callback(config);
+		configs[fileName] = config;
+	});
+}
+function loadGlobalConfig(callback) { // TODO: manage various types of configs, eg global, per player and maybe even per village
 	function onFinish() {
 		fs.writeFile('./config.json', JSON.stringify(globalConfig), function(err) {
 			if (err) { throw err; }
@@ -73,3 +100,11 @@ module.exports = function(type, callback) { // TODO: manage various types of con
 		}
 	}
 };
+
+module.exports = function(type, callback) {
+	if (type === 'global') {
+		loadGlobalConfig(callback);
+	} else {
+		loadConfig(type, callback);
+	}
+}

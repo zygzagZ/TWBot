@@ -1,5 +1,7 @@
 var Villages = {};
 
+var units = ['spear', 'sword', 'axe', 'archer', 'spy', 'light', 'marcher', 'heavy', 'ram', 'catapult', 'knight', 'snob'];
+
 function Village(id, player) {
 	this.id = parseInt(id, 10);
 	this.lastupdate = 0;
@@ -16,6 +18,167 @@ function Village(id, player) {
 }
 
 Village.prototype = {
+	getBuildingsData: function() {
+		// TODO: refactor building queue
+		// TODO: instead of checking every 30 mins remember when to check (when needs for next building in queue are met)
+		var v = this;	
+		var village_id = v.id;
+		var player = this.player;
+		player.request({
+			url:'http://pl'+player.world+'.plemiona.pl/game.php?village='+village_id+'&screen=main',
+			callback: function(str) {
+				var order_count = 0;
+				if (str.indexOf('BuildingMain.order_count') > 0) {
+					order_count = parseInt(str.match(/BuildingMain.order_count = (\d+)/)[1], 10);
+					if (order_count >= 2) {
+						setTimeout(v.getBuildingsData.bind(v), 30*60*1000);
+						console.log('Already 2+ orders. Set new check timeout in ' + 30*60 + ' seconds.');
+						return;
+					}
+				}
+				var cs = str.indexOf('BuildingMain.buildings = ')+24, ce = str.indexOf('</script>', cs);
+				v.parseBuildingsData(JSON.parse(str.substr(cs, ce-cs-2).replace(/&amp;/g, '&')), order_count);
+			}
+		});
+	},
+	getNextItemInBuildingQueue: function(queue, data) {
+		var eco = [data.wood.level_next-1, data.stone.level_next-1, data.iron.level_next-1];
+		eco = [['wood', 'stone', 'iron'][eco.indexOf(Math.min.apply(Math, eco))], Math.min.apply(Math, eco)];
+		for (var i = 0; i < queue.length; i++) {
+			var d = queue[i].split(',');
+			if (d.length<2) {
+				d[1] = 1;
+			}
+			if (d[0] === 'eco') {
+				if (eco[1] < parseInt(d[1], 10)) {
+					return eco[0];
+					break;
+				}
+			} else if ((data[d[0]] ? data[d[0]].level_next-1 : 0) < parseInt(d[1], 10)) {
+				return d[0];
+			}
+		}
+		return false;
+	},
+	parseBuildingsData: function(BuildingsData, order_count) {
+		var buildingOrder = 'iron|stone|wood|place|stone,2|wood,2|iron,2|stone,3|stone,4|wood,3|wood,4|wood,5|wood,6|stone,5|main,2|storage,3|wood,8|stone,6|iron,6|main,3|wood,9|stone,8|barracks|wood,11|stone,11|iron,10|wood,12|stone,12|eco,15|main,4|main,5|storage,3|wood,16|stone,16|wood,17|stone,17|wood,18|stone,18|iron,16|stone,19|wood,19|stone,20|wood,20|stone,21|wood,21|iron,17|stone,22|wood,22|stone,23|wood,23|iron,20|stone,25|wood,25|main,10|wall,5|main,15|wall,10|barracks,5|smith,5|barracks,10|smith,10|stable,3|smith,2|farm,2|market|barracks,2|barracks,3|smith,3|main,6|barracks,4|storage,4|main,8|farm,4|smith,4|smith,5|barracks,5|storage,5|storage,6|market,2|market,3|main,9|main,10|stable|stable,2|stable,3|wall|storage,10|farm,10|statue|eco,13|main,13|eco,19|main,17|storage,17|main,20|garage,5|storage,20|eco,25|stable,5|market,10|smith,15|barracks,15|wall,15|smith,20|snob|eco,26|eco,27|eco,28|eco,29|eco,30|storage,30|farm,30|barracks,10|stable,8|garage,3|barracks,15|stable,10|market,20|barracks,20|stable,17|garage,10|barracks,25|stable,20|hide,10'.split('|');
+		var building = this.getNextItemInBuildingQueue(buildingOrder, BuildingsData);
+		var v = this;
+		while (building) {
+			d = BuildingsData[building];
+			var err = d.error || '',
+				needFarm = err.indexOf(BuildingsData.farm.name) >= 0, // need to build farm first
+				needStorage = err.indexOf(BuildingsData.storage.name) >= 0; // need to build storage first
+				
+
+			console.log('wannabuild: ', building, 'err: ', err, 'needFarm: ', needFarm, 'needStorage: ', needStorage);
+
+			if (needFarm) {
+				building = 'farm';
+				continue;
+			} else if (needStorage) {
+				building = 'storage';
+				continue;
+			}
+
+			if (
+				(d.next_level > d.max_level) 
+				// TODO: add more checks
+			) {
+				building = false; break;
+			}
+			// TODO: work out eventual bug - TW doesn't send all buildings, just these you can build
+			// TODO: add managing buildings using info from interface.php
+			break;
+		}
+		if (BuildingsData[building] && BuildingsData[building].can_build && !BuildingsData[building].error) {
+			console.log('BUILDING: ' + building);
+			player.request({
+				url: BuildingsData[building].build_link,
+				callback: function() {
+					var buildtime = BuildingsData[building].build_time * 1000;
+					if (order_count < 1) {
+						buildtime = Math.min(buildtime, Math.random()*5000+3000);
+					}
+					
+					setTimeout(v.getBuildingsData.bind(v), buildtime);
+					console.log('set new build timeout in ' + buildtime/1000 + ' seconds.');
+				}
+			});
+			
+		} else { // check again in 30 minutes
+			setTimeout(v.getBuildingsData.bind(v), 30*60*1000);
+			console.log('set new check timeout in ' + 30*60 + ' seconds.');
+		}
+	},
+	sendAttack: function(target, troops, onSuccess, onError) { // {id: 17000, x: 444, y: 666}, [0,0,0,0,0,0,0,0,0,0]
+		var me = this;
+		if (!TWManager.antiCSRF) { 
+			if (!target.id) {
+				var wioski = TWManager.cache.get('wioski'),
+					n = target.x + '|' + target.y;
+				if (wioski[n]) {
+					target.id = wioski[n].id;
+				} else {
+					unsafeWindow.TribalWars.get('api', unsafe({
+						ajax: 'target_selection',
+						input: n,
+						type: 'coord',
+						request_id: 1,
+						limit: Math.floor(Math.random() * 3 + 6),
+						offset: 0
+					}), unsafe(function(d) {if (d.villages.length) {target.id = d.villages[0].id; me.sendAttack(target, troops, onSuccess, onError);}}));
+					return;
+				}
+			}
+			unsafeWindow.TribalWars.get('place', unsafe({
+				ajax: 'command',
+				target: target.id
+			}), unsafe(function(r) {
+				var tmp = r.dialog.match(/<input type="hidden" name="([a-z0-9]+)" value="([a-z0-9]+)" \/>/);
+				console.log('antiCSRF: ', tmp[1], tmp[2]);
+				TWManager.antiCSRF = [tmp[1], tmp[2]];
+				me.sendAttack(target, troops, onSuccess, onError);
+			}));
+			return;
+		}
+		
+		var data = [{name: TWManager.antiCSRF[0], value:TWManager.antiCSRF[1]}];
+		
+		for (var i = 0; i < units.length; i++) {
+			data.push({name: units[i], value: (troops[i] || '')});
+		}
+			
+		data.push({name:'x', value:target.x});
+		data.push({name:'y', value:target.y});
+		data.push({name:'input', value:''});
+		data.push({name:'attack', value:'l'});
+		unsafeWindow.TribalWars.post('place', unsafe({
+			ajax: 'confirm'
+		}), unsafe(data), unsafe(function (result) {
+			var data = [{name:'attack',value:'true'}],
+				ch = result.dialog.match(/<input type="hidden" name="ch" value="([a-z0-9]+)" \/>/)[1], 
+				action_id = result.dialog.match(/<input type="hidden" name="action_id" value="([0-9]+)" \/>/)[1];
+			data.push({name:'ch', value:ch});
+			data.push({name:'x', value:target.x});
+			data.push({name:'y', value:target.y});
+			data.push({name:'action_id', value:action_id});
+			for (var i = 0; (i < units.length) && (i < troops.length); i++) {
+				data.push({name: units[i], value: (troops[i] || '')});
+			}
+			
+			unsafeWindow.TribalWars.post('place', unsafe({
+				ajaxaction: 'popup_command'
+			}), unsafe(data), unsafe(function (result) {
+				unsafeWindow.UI.SuccessMessage(result.message);
+				if (onSuccess) { onSuccess(); }
+				if ((result.type === 'attack') && unsafeWindow.TWMap) { unsafeWindow.TWMap.actionHandlers.command.ensureIconOnMap(result.target_id, result.type); }
+				else if (TWManager.url.screen == "overview" || TWManager.url.screen == "place") {
+					unsafeWindow.partialReload();
+				}
+			}), unsafe(onError));
+		}), unsafe(onError));
+	},
 	manage: function() {
 		var village_id = this.id;
 		/*if (VillageId[village_id].lastupdate < new Date().getTime()+10*60*1000) {
@@ -23,99 +186,8 @@ Village.prototype = {
 			return;
 		}*/
 		// TODO: managing village
-		// TODO: refactor building queue
-		// TODO: instead of checking every 30 mins remember when to check (when needs for next building in queue are met)
-		var player = this.player;		
-		function building() {
-			player.request({
-				url:'http://pl'+player.world+'.plemiona.pl/game.php?village='+village_id+'&screen=main',
-				callback: function(str) {
-					var order_count = 0;
-					if (str.indexOf('BuildingMain.order_count') > 0) {
-						order_count = parseInt(str.match(/BuildingMain.order_count = (\d+)/)[1], 10);
-					}
-					var cs = str.indexOf('BuildingMain.buildings = ')+24, ce = str.indexOf('</script>', cs);
-					var BuildingsData = JSON.parse(str.substr(cs, ce-cs-2).replace(/&amp;/g, '&'));
-					var eco = [BuildingsData.wood.level_next-1, BuildingsData.stone.level_next-1, BuildingsData.iron.level_next-1];
-					eco = [['wood', 'stone', 'iron'][eco.indexOf(Math.min.apply(Math, eco))], Math.min.apply(Math, eco)];
-					var buildingOrder = 'iron|stone|wood|place|stone,2|wood,2|iron,2|stone,3|stone,4|wood,3|wood,4|wood,5|wood,6|stone,5|main,2|storage,3|wood,8|stone,6|iron,6|main,3|wood,9|stone,8|barracks|wood,11|stone,11|iron,10|wood,12|stone,12|eco,15|main,4|main,5|storage,3|wood,16|stone,16|wood,17|stone,17|wood,18|stone,18|iron,16|stone,19|wood,19|stone,20|wood,20|stone,21|wood,21|iron,17|stone,22|wood,22|stone,23|wood,23|iron,20|stone,25|wood,25|main,10|wall,5|main,15|wall,10|barracks,5|smith,5|barracks,10|smith,10|stable,3|smith,2|farm,2|market|barracks,2|barracks,3|smith,3|main,6|barracks,4|storage,4|main,8|farm,4|smith,4|smith,5|barracks,5|storage,5|storage,6|market,2|market,3|main,9|main,10|stable|stable,2|stable,3|wall|storage,10|farm,10|statue|eco,13|main,13|eco,19|main,17|storage,17|main,20|garage,5|storage,20|eco,25|stable,5|market,10|smith,15|barracks,15|wall,15|smith,20|snob|eco,26|eco,27|eco,28|eco,29|eco,30|storage,30|farm,30|barracks,10|stable,8|garage,3|barracks,15|stable,10|market,20|barracks,20|stable,17|garage,10|barracks,25|stable,20|hide,10'.split('|');
-					function checkLevel(s) {
-						return BuildingsData[s] ? BuildingsData[s].level_next-1 : 0;
-					}
-					function whatToBuild() {
-						var building = '';
-						var d;
-						for (var i = 0; i < buildingOrder.length; i++) {
-							d = buildingOrder[i].split(',');
-							if (d.length<2) {
-								d[1] = 1;
-							}
-							if (d[0] === 'eco') {
-								if (eco[1] < parseInt(d[1], 10)) {
-									building = eco[0];
-									break;
-								}
-							} else if (checkLevel(d[0]) < parseInt(d[1], 10)) {
-								building = d[0];
-								break;
-							}
-						}
-						if (building === '') {
-							return;
-						}
-						while (building.length) {
-							d = BuildingsData[building];
-							var err = d.error || '',
-								needFarm = err.indexOf(BuildingsData.farm.name) >= 0, // need to build farm first
-								needStorage = err.indexOf(BuildingsData.storage.name) >= 0; // need to build storage first
-								
-
-							console.log('wannabuild: ', building, 'err: ', err, 'needFarm: ', needFarm, 'needStorage: ', needStorage);
-
-							if (needFarm) {
-								building = 'farm';
-								continue;
-							} else if (needStorage) {
-								building = 'storage';
-								continue;
-							}
-
-							if (
-								(d.next_level > d.max_level) 
-								// TODO: add more checks
-							) {
-								building = ''; break;
-							}
-							// TODO: work out eventual bug - TW doesn't send all buildings, just these you can build
-							// TODO: add managing buildings using info from interface.php
-							break;
-						}
-						return building;
-					}
-					var id = whatToBuild();
-					if (BuildingsData[id] && BuildingsData[id].can_build && order_count < 2 && !BuildingsData[id].error) {
-						console.log('BUILDING: ' + id);
-						player.request({
-							url: BuildingsData[id].build_link,
-							callback: function() {
-								var buildtime = BuildingsData[id].build_time * 1000;
-								if (order_count < 2-1) {
-									buildtime = Math.min(buildtime, Math.random()*5000+3000);
-								}
-								
-								setTimeout(building, buildtime);
-								console.log('set new build timeout in ' + buildtime/1000 + ' seconds.');
-							}
-						});
-						
-					} else { // check again in 30 minutes
-						setTimeout(building, 30*60*1000);
-						console.log('set new check timeout in ' + 30*60 + ' seconds.');
-					}
-				}
-			});
-		}
-		building();
+		var player = this.player;	
+		this.getBuildingsData();	
 	},
 
 };

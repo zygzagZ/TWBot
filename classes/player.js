@@ -32,7 +32,7 @@ function Player(data) {
 		    	console.log(from + '>> ' + message);
 			if (data.hangouts.allow.indexOf(from.split('/')[0]) < 0) {
 				if (!data.hangouts.suppressWarning) {
-					bot.sendMessage(from, 'Hello, ' + from + ', I am not allowed to communicate with you.');
+					bot.sendMessage(from, 'Hello, ' + from + '. I am not allowed to communicate with you.');
 				}
 				return;
 			}

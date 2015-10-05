@@ -1,6 +1,8 @@
 var RawRequest = include('classes/net'),
 	CookieManager = include('classes/cookiemanager'),
+	loadConfig = include('classes/configmanager'),
 	fs = require('fs'),
+
 	parseString = require('xml2js').parseString,
 	Village = include('classes/village');
 
@@ -16,6 +18,10 @@ function World(data) {
 	this.data = {villageList: new Village.List(), settings: data}; // TODO: store valuable values from game_data here
 
 	this.world = data.world;
+	
+	loadConfig('p' + this.username + '.w' + this.world, function(conf) {
+		self.config = conf;
+	});
 	this.trace = '['+this.world + '/'+this.username+']';
 	this.cookies = new CookieManager();
 	this.login(this.refreshVillagesList.bind(this));
@@ -82,11 +88,12 @@ World.prototype = {
 	},
 	refreshVillagesList: function() {
 		this.request({
-			url:'http://pl'+this.world+'.plemiona.pl/game.php?screen=overview_villages',
+			url:'http://pl'+this.world+'.plemiona.pl/game.php?screen=overview_villages&mode=prod',
 			callback: this.onVillagesList.bind(this),
 		});
 	},
 	onVillagesList: function(str) {
+		str = str.replace(/<span class="grey"\>\.<\/span\>/g, '');
 		var startPos = str.indexOf('</tr>', str.indexOf('overview_table')+1)+5,
 			finishPos = str.lastIndexOf('</tr>', str.indexOf('</table>', startPos)),
 			tableString = str.substr(startPos, finishPos-startPos).split('</tr>');
@@ -108,12 +115,17 @@ World.prototype = {
 			cs = s.indexOf('<td>', ce)+4; ce = s.indexOf('</td>', cs);
 			d.points = parseInt(s.substr(cs, ce-cs), 10);
 			cs = s.indexOf('<td>', ce)+4; ce = s.indexOf('</td>', cs);
-			var res = s.substr(cs, ce-cs).replace(/<span class="grey"\>\.<\/span\>/g, '').match(/\d+/g);
+			var res = s.substr(cs, ce-cs).match(/\d+/g);
 			d.res = [parseInt(res[0], 10), parseInt(res[1], 10), parseInt(res[2], 10)];
 			cs = s.indexOf('<td>', ce)+4; ce = s.indexOf('</td>', cs);
 			d.storage = parseInt(s.substr(cs, ce-cs), 10);
 			cs = s.indexOf('<td>', ce)+4; ce = s.indexOf('</td>', cs);
-			var farmdata = s.substr(cs, ce-cs).split('/');
+			var farmdata = s.substr(cs, ce-cs);
+			if (farmdata[1] === 'a') { // Player has premium
+				cs = s.indexOf('<td>', ce)+4; ce = s.indexOf('</td>', cs);
+				farmdata = s.substr(cs, ce-cs);
+			}
+			farmdata = farmdata.split('/');
 			d.farm={used:parseInt(farmdata[0], 10), total: parseInt(farmdata[1], 10), free: farmdata[1]-farmdata[0]};
 			console.log(this.trace, 'Scanned village:', d.id);
 			// example: {"id":1337,"name":"My Very First Village","coordsText":"465|586","x":465,"y":586,"coords":[465,586],"points":1337,"res":[1000,1000,0],"storage":400000,"farm":{"used":239,"total":240,"free":1}}
