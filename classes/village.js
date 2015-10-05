@@ -23,9 +23,8 @@ Village.prototype = {
 		// TODO: instead of checking every 30 mins remember when to check (when needs for next building in queue are met)
 		var v = this;	
 		var village_id = v.id;
-		var player = this.player;
-		player.request({
-			url:'http://pl'+player.world+'.plemiona.pl/game.php?village='+village_id+'&screen=main',
+		this.player.request({
+			url:'http://pl'+this.player.world+'.plemiona.pl/game.php?village='+village_id+'&screen=main',
 			callback: function(str) {
 				var order_count = 0;
 				if (str.indexOf('BuildingMain.order_count') > 0) {
@@ -93,7 +92,7 @@ Village.prototype = {
 		}
 		if (BuildingsData[building] && BuildingsData[building].can_build && !BuildingsData[building].error) {
 			console.log('BUILDING: ' + building);
-			player.request({
+			this.player.request({
 				url: BuildingsData[building].build_link,
 				callback: function() {
 					var buildtime = BuildingsData[building].build_time * 1000;
@@ -186,7 +185,6 @@ Village.prototype = {
 			return;
 		}*/
 		// TODO: managing village
-		var player = this.player;	
 		this.getBuildingsData();	
 	},
 
