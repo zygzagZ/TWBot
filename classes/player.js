@@ -2,6 +2,7 @@ var UserAgents = include('classes/useragents'),
 	RawRequest = include('classes/net'),
 	
 	// hangoutsBot = require('hangouts-bot'),
+	Q = require('q'),
 	Hangups = require('hangupsjs'),
 	World = include('classes/world');
 
