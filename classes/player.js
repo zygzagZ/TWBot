@@ -1,7 +1,8 @@
 var UserAgents = include('classes/useragents'),
 	RawRequest = include('classes/net'),
 	
-	hangoutsBot = require('hangouts-bot'),
+	// hangoutsBot = require('hangouts-bot'),
+	Hangups = require('hangupsjs'),
 	World = include('classes/world');
 
 	
@@ -19,28 +20,54 @@ function Player(data) {
 		this.worlds[data.worlds[i]] = new World(WorldData);
 	}
 
-	if (data.hangouts && data.hangouts.username && data.hangouts.password && data.hangouts.allow && data.hangouts.allow.length) {
-		var bot = this.hangouts = new hangoutsBot(data.hangouts.username, data.hangouts.password);
+	if (data.hangouts && data.hangouts.token) {
+		var bot = this.hangouts = new Hangups();
 		bot.allow = data.hangouts.allow;
 		bot.context = {};
-		
-		bot.on('online', function() {
-		    console.log(self.username + ': Hangouts online.');
-		});
+		var reconnect = function() {
+			bot.connect(function() {
+				return {auth: Q.promise(function(rs){rs(data.hangouts.token);})};
+			}).then(function() {
+				var conversation = bot.init.conv_states[0];
+				if (!conversation)
+					return;
 
-		bot.on('message', function(from, message) {
-		    	console.log(from + '>> ' + message);
-			if (data.hangouts.allow.indexOf(from.split('/')[0]) < 0) {
+				var conv_id = conversation.conversation_id.id;
+				console.log(self.username + ': Hangouts online.');
+				return bot.sendchatmessage(bot.conv_id, [
+					[0, 'Hello!']
+				])
+			});
+		};
+		bot.on('connect_failed', function() {
+			setTimeout(reconnect,3000);
+		});
+		bot.on('chat_message', function(ev) {
+			var sender = ev.sender_id.chat_id;
+			if (sender === ev.self_event_state.user_id.chat_id) // current user message
+				return;
+
+			var conv_id = ev.conversation_id.id;
+			if (data.hangouts.allow.indexOf(sender) < 0) {
 				if (!data.hangouts.suppressWarning) {
-					bot.sendMessage(from, 'Hello, ' + from + '. I am not allowed to communicate with you.');
+					bot.sendchatmessage(conv_id, [[0, 'Hello, ' + sender + '. I am not allowed to communicate with you.']]);
 				}
 				return;
 			}
-			var msg = self.onHangoutsMessage(from, message);
+			var msg = ev.chat_message.message_content.segment;
+			var txt = '';
+			for (var i = 0; i < msg.length; i++) {
+				if (msg[i].type === 'TEXT') {
+					txt += msg[i].text;
+				}
+			}
+			console.log(conv_id + '>> ' + txt);
+			msg = self.onHangoutsMessage(conv_id, txt);
 			if (msg && msg.length) {
-				bot.sendMessage(from, msg);
+				bot.sendchatmessage(conv_id, [[0, msg]]);
 			}
 		});
+		reconnect();
 	}
 
 }
@@ -69,8 +96,11 @@ Player.prototype = {
 		}
 		return this.worlds[data.worldid].onHangoutsMessage(from, message, this.hangouts.context[from][data.worldid]);
 	},
-	notify: function(what) {
-		return this.hangouts ? this.hangouts.sendMessage(this.hangouts.allow[0], what) : false;
+	notify: function(what, to) {
+		if (!this.hangouts) return false;
+		if (!what) return false;
+		if (!to) to = this.hangouts.conv_id;
+		return this.hangouts.sendchatmessage(to, [[0, what]]);
 	}
 };
 module.exports = Player;
