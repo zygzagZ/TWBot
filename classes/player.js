@@ -27,7 +27,7 @@ function Player(data) {
 		bot.context = {};
 		var reconnect = function() {
 			bot.connect(function() {
-				return {auth: Q.promise(function(rs){rs(data.hangouts.token);})};
+				return {auth: function(){return Q.promise(function(rs){rs(data.hangouts.token)})}}
 			}).then(function() {
 				var conversation = bot.init.conv_states[0];
 				if (!conversation)
