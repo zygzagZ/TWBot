@@ -2,16 +2,15 @@ var RawRequest = include('classes/net'),
 	CookieManager = include('classes/cookiemanager'),
 	loadConfig = include('classes/configmanager'),
 	fs = require('fs'),
+	url = require('url'),
 
 	parseString = require('xml2js').parseString,
 	Village = include('classes/village');
 
-var interfaceData = {};
+var worldConfig = {};
 
 function World(data) {
 	var self = this;
-	this.username = data.username;
-	this.password = data.password;
 	this.userAgent = data.userAgent;
 	this.player = data.player;
 
@@ -19,32 +18,31 @@ function World(data) {
 
 	this.world = data.world;
 	
-	loadConfig('p' + this.username + '.w' + this.world, function(conf) {
+	loadConfig('p' + data.username + '.w' + this.world, function(conf) {
 		self.config = conf;
 	});
-	this.trace = '['+this.world + '/'+this.username+']';
+	this.trace = '['+this.world + '/'+data.username+']';
 	this.cookies = new CookieManager();
 	this.login(this.refreshVillagesList.bind(this));
 	
-	Object.defineProperty(this, 'util', {get: function() { return interfaceData[self.world]; }});
+	Object.defineProperty(this, 'util', {get: function() { return worldConfig[self.world] && worldConfig[self.world].util; }});
+	Object.defineProperty(this, 'worldConfig', {get: function() { return worldConfig[self.world]; }});
 	
-	if (!interfaceData[data.world]) {
-		interfaceData[data.world] = true;
-		if (fs.existsSync('./interface.' + data.world + '.json')) {
-			fs.readFile('./interface.' + data.world + '.json', function(err, val) {
-				interfaceData[data.world] = new Utility(JSON.parse(val));
-			});
-		} else {
-			RawRequest({url: 'http://pl'+data.world+'.plemiona.pl/interface.php?func=get_building_info',
-				callback: function(building_info) {
-					parseString(building_info, function (err, result) {
-						building_info = JSON.stringify(result.config).replace(/\[/g, '').replace(/\]/g, '');
-						interfaceData[data.world] = new Utility(JSON.parse(building_info));
-						fs.writeFile('./interface.'+data.world+'.json', building_info);
-					});
-				}
-			});
-		}
+	if (!worldConfig[self.world]) {
+		worldConfig[self.world] = true;
+		loadConfig('w' + self.world, function(conf) {
+			worldConfig[self.world] = conf;
+			if (!conf.util) {
+				RawRequest({url: 'http://pl'+self.world+'.plemiona.pl/interface.php?func=get_building_info',
+					callback: function(building_info) {
+						parseString(building_info, function (err, result) {
+							building_info = JSON.stringify(result.config).replace(/\[/g, '').replace(/\]/g, '');
+							conf.util = new Utility(JSON.parse(building_info));
+						});
+					}
+				});
+			}
+		});
 	}
 	if (data.trophies) {
 		setTimeout(this.initTrophies.bind(this), rand(10000, 20000));
@@ -56,7 +54,7 @@ World.prototype = {
 		var self = this;
 		console.log(this.trace,'logging in');	
 		this.request({
-			url:'http://pl'+this.world+'.plemiona.pl/login.php?user='+this.username+'&password='+this.password+'&utf-8',
+			url:'http://pl'+this.world+'.plemiona.pl/login.php?user='+this.player.username+'&password='+this.player.password+'&utf-8',
 			callback: function(s) {console.log(self.trace, 'login successful!'); success(s);}
 		});
 	},
@@ -72,17 +70,20 @@ World.prototype = {
 			setTimeout(Village.manage.bind(this.getVillage(id)), Math.random()*1000+1000);
 		}
 	},
-	parseInfo: function(str) {
-		var data;
-		var cs = str.indexOf('game_data = ')+12, ce = str.indexOf('};', cs)+1;
-		data = JSON.parse(str.substr(cs, ce-cs));
+	onNewGameData: function(data) {
 		this.data.extend({
 			player: data.player,
 			csrf: data.csrf,
 		});
 		var villageProperties = {x:1,y:1,lastupdate: new Date().getTime(),name:1,storage_max:1,pop_max:1,wood:1,stone:1,iron:1,pop:1,trader_away:1,buildings:1,player_id:1};
 		this.getVillage(data.village.id).extend(villageProperties.extend(true, data.village)); // copy only listed properties
-
+	},
+	parseInfo: function(str) {
+		var data;
+		var cs = str.indexOf('game_data = ')+12, ce = str.indexOf('};', cs)+1;
+		var data = JSON.parse(str.substr(cs, ce-cs));
+		this.onNewGameData(data);
+		
 		// TODO: parse and store even more overview data
 		return data.village.id;
 	},
@@ -135,9 +136,40 @@ World.prototype = {
 	getVillage: function (id) {
 		return Village(id, this);
 	},
+	get: function(screen, params, callback, errorCallback) {
+		params.screen = screen;
+		this.request({
+			url: url.format({
+				protocol: 'https',
+				host: 'pl'+this.world+'.plemiona.pl',
+				pathname: '/game.php',
+				query: params
+			}),
+			callback: callback,
+			errorCallback: errorCallback,
+			json: true
+		});
+	},
+	post: function(screen, params, data, callback, errorCallback) {
+		params.screen = screen;
+		params.h = this.data.csrf;
+		this.request({
+			url: url.format({
+				protocol: 'https',
+				host: 'pl'+this.world+'.plemiona.pl',
+				pathname: '/game.php',
+				query: params
+			}),
+			callback: callback,
+			errorCallback: errorCallback,
+			json: true,
+			data: data
+		});
+	},
 	request: function(config) { // request for page, basic checks for bot verification and session timeout
-		var self = this;
-		var callback = config.callback;
+		var self = this, 
+			callback = config.callback;
+		
 		if (!config.cookies) {
 			config.cookies = this.cookies;
 		}
@@ -171,8 +203,27 @@ World.prototype = {
 				return;
 			}
 			try {
-				self.parseInfo(str);
-				callback(str);
+				if (config.json) {
+					try {
+						str = JSON.parse(str);
+					} catch(e) {};
+					if (str.game_data) {
+						self.onNewGameData(str.game_data);
+					}
+					var arg = str;
+					if (str.content)
+						arg = str.content
+					else if (str.response && str.response !== 'partial_reload')
+						arg = str.response;
+					if (str.error && config.errorCallback) {
+						config.errorCallback(str.error, str);
+					} else {
+						callback(arg, str);
+					}
+				} else {
+					callback(str);
+					self.parseInfo(str);
+				}
 			} catch(e) {
 				console.log(self.trace, e, e.stack);
 				console.error('----------STRING', finalurl, '----------', str, '----------STRING END----------');
@@ -279,7 +330,7 @@ World.prototype = {
 	notify: function(what) {
 		return this.player.notify('[' + this.world + '] ' + what);
 	},
-	getVaildVillageId: function() {
+	getValidVillageId: function() {
 		for (var i in this.villageList) {
 			return i;
 		}
@@ -287,7 +338,7 @@ World.prototype = {
 	},
 	initTrophies: function() {
 		var self = this;
-		var village_id = this.getVaildVillageId();
+		var village_id = this.getValidVillageId();
 		var parseEvent;
 		var ignoreplayers = ['698864250', '698386988', '8315787', '6825480'], lastplayerattacked = 0; // TODO: add storing this kind of data to config
 		function scheduleEvent() {

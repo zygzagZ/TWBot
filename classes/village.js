@@ -35,8 +35,8 @@ Village.prototype = {
 						return;
 					}
 				}
-				var cs = str.indexOf('BuildingMain.buildings = ')+24, ce = str.indexOf('</script>', cs);
-				v.parseBuildingsData(JSON.parse(str.substr(cs, ce-cs-2).replace(/&amp;/g, '&')), order_count);
+				var cs = str.indexOf('BuildingMain.buildings = ')+24, ce = str.indexOf('};', cs)+1;
+				v.parseBuildingsData(JSON.parse(str.substr(cs, ce-cs).replace(/&amp;/g, '&')), order_count);
 			}
 		});
 	},
@@ -111,72 +111,66 @@ Village.prototype = {
 		}
 	},
 	sendAttack: function(target, troops, onSuccess, onError) { // {id: 17000, x: 444, y: 666}, [0,0,0,0,0,0,0,0,0,0]
-		var me = this;
-		if (!TWManager.antiCSRF) { 
+		var self = this;
+		if (!this.player.commandSecret) { 
 			if (!target.id) {
-				var wioski = TWManager.cache.get('wioski'),
+				var wioski = this.player.worldConfig.wioski,
 					n = target.x + '|' + target.y;
+				
+				if (!wioski)
+					wioski = this.player.worldConfig.wioski = {};
+
 				if (wioski[n]) {
 					target.id = wioski[n].id;
 				} else {
-					unsafeWindow.TribalWars.get('api', unsafe({
+					this.player.get('api', {
 						ajax: 'target_selection',
 						input: n,
 						type: 'coord',
 						request_id: 1,
 						limit: Math.floor(Math.random() * 3 + 6),
 						offset: 0
-					}), unsafe(function(d) {if (d.villages.length) {target.id = d.villages[0].id; me.sendAttack(target, troops, onSuccess, onError);}}));
+					}, function(d) {if (d.villages.length) {target.id = d.villages[0].id; wioski[n] = {x:target.x, y:target.y, id: target.id}; self.sendAttack(target, troops, onSuccess, onError);}});
 					return;
 				}
 			}
-			unsafeWindow.TribalWars.get('place', unsafe({
+			this.player.get('place', {
 				ajax: 'command',
 				target: target.id
-			}), unsafe(function(r) {
+			}, function(r) {
 				var tmp = r.dialog.match(/<input type="hidden" name="([a-z0-9]+)" value="([a-z0-9]+)" \/>/);
-				console.log('antiCSRF: ', tmp[1], tmp[2]);
-				TWManager.antiCSRF = [tmp[1], tmp[2]];
-				me.sendAttack(target, troops, onSuccess, onError);
-			}));
+				self.player.commandSecret = [tmp[1], tmp[2]];
+				self.sendAttack(target, troops, onSuccess, onError);
+			});
 			return;
 		}
 		
-		var data = [{name: TWManager.antiCSRF[0], value:TWManager.antiCSRF[1]}];
+		var data = {[this.player.commandSecret[0]]: this.player.commandSecret[1], x:target.x, y:target.y, input: '', attack: 'l'};
 		
 		for (var i = 0; i < units.length; i++) {
-			data.push({name: units[i], value: (troops[i] || '')});
+			data[units[i]] = (troops[i] || '');
 		}
-			
-		data.push({name:'x', value:target.x});
-		data.push({name:'y', value:target.y});
-		data.push({name:'input', value:''});
-		data.push({name:'attack', value:'l'});
-		unsafeWindow.TribalWars.post('place', unsafe({
+		this.player.post('place', {
 			ajax: 'confirm'
-		}), unsafe(data), unsafe(function (result) {
-			var data = [{name:'attack',value:'true'}],
+		}, data, function (result) {
+			var data = {attack:'true', x: target.x, y:target.y},
 				ch = result.dialog.match(/<input type="hidden" name="ch" value="([a-z0-9]+)" \/>/)[1], 
 				action_id = result.dialog.match(/<input type="hidden" name="action_id" value="([0-9]+)" \/>/)[1];
-			data.push({name:'ch', value:ch});
-			data.push({name:'x', value:target.x});
-			data.push({name:'y', value:target.y});
-			data.push({name:'action_id', value:action_id});
+			data.ch = ch;
+			data.action_id = action_id;
 			for (var i = 0; (i < units.length) && (i < troops.length); i++) {
-				data.push({name: units[i], value: (troops[i] || '')});
+				data[units[i]] = (troops[i] || '');
 			}
-			
-			unsafeWindow.TribalWars.post('place', unsafe({
+			self.player.post('place', {
 				ajaxaction: 'popup_command'
-			}), unsafe(data), unsafe(function (result) {
-				unsafeWindow.UI.SuccessMessage(result.message);
+			}, data, function (result, ret) {
 				if (onSuccess) { onSuccess(); }
-				if ((result.type === 'attack') && unsafeWindow.TWMap) { unsafeWindow.TWMap.actionHandlers.command.ensureIconOnMap(result.target_id, result.type); }
-				else if (TWManager.url.screen == "overview" || TWManager.url.screen == "place") {
-					unsafeWindow.partialReload();
-				}
-			}), unsafe(onError));
-		}), unsafe(onError));
+			}, function(err, ret) {
+				if (onError) onError(err);
+			});
+		}, function(err, ret) {
+			if (onError) onError(err);
+		});
 	},
 	manage: function() {
 		var village_id = this.id;

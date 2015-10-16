@@ -1,4 +1,6 @@
-var http = require('https');
+var http = require('https'),
+	querystring = require('querystring');
+
 http.globalAgent.maxSockets = 200;
 http.globalAgent.keepAliveMsecs = 20000;
 http.globalAgent.keepAlive = true;
@@ -24,6 +26,8 @@ function Request(config) { // url, cookies, callback, data, previousHost, previo
 	}
 	if (typeof(config.data) === 'object') {
 		config.data = querystring.stringify(config.data);
+	} else if (typeof(config.data) === 'string' && !config.data.length) {
+		delete config.data;
 	}
 	
 	var pathDirectoryEnd = path.findLast('/', Math.min(path.find('?'), path.find('#'), path.length)), directory;
@@ -85,6 +89,9 @@ function Request(config) { // url, cookies, callback, data, previousHost, previo
 		req.on('error', function(e) {
 			console.log('problem with request: ' + e.message);
 		});
+		if (config.data) {
+			req.write(config.data);
+		}
 		req.end();
 	} catch(e) {
 		console.error(e, JSON.stringify(options));

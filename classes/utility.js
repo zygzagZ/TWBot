@@ -56,6 +56,7 @@ function extendIterateFunction(source, dest, blockNew, name) {
 
 Object.defineProperty(Object.prototype, 'extend', {
 	enumerable: false,
+	writable: true,
 	value: function() {
 		var blockNew = arguments[0] && typeof(arguments[0]) === 'boolean';
 		for (var i in arguments) {
