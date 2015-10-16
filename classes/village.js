@@ -145,7 +145,8 @@ Village.prototype = {
 			return;
 		}
 		
-		var data = {[this.player.commandSecret[0]]: this.player.commandSecret[1], x:target.x, y:target.y, input: '', attack: 'l'};
+		var data = {x:target.x, y:target.y, input: '', attack: 'l'};
+		data[this.player.commandSecret[0]] = this.player.commandSecret[1];
 		
 		for (var i = 0; i < units.length; i++) {
 			data[units[i]] = (troops[i] || '');
