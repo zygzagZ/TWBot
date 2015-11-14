@@ -73,7 +73,7 @@ Object.defineProperty(Array.prototype, 'random', {
 		return this[Math.floor(Math.random()*this.length)];
 	}
 });
-
+var units_speed = [18, 22, 18, 18, 9, 10, 10, 11, 30, 30, 10, 35];
 
 global.Utility = function(data) {
 	this.data = data;
@@ -104,6 +104,27 @@ Utility.prototype = {
 	},
 	marketCap: function(lv) {
 		return lv < 11 ? lv : (lv - 10)*(lv - 10) + 10;
+	},
+	distance: function(a, b) {
+		return Math.sqrt((a.x-b.x)*(a.x-b.x)+(a.y-b.y)*(a.y-b.y))
+	},
+	getTravelTime: function(troops, a, b, type) {
+		int len = troops.length;
+		if (units_speed.length < len)
+			len = units_speed.length;
+		var speed = 0;
+		if (type && len > 10 && troops[10] > 0) { // it's support with knight
+			speed = 10;
+		} else { // it's attack or support without knight
+			for (var i = 0; i < len; i++) {
+				if (troops[i] > 0)
+					if (speed < units_speed[i])
+						speed = units_speed[i];
+			}
+
+		}
+		var dist = this.distance(a,b);
+		return speed * 60000 * dist;
 	}
 };
 global.rand = function(a,b) {

@@ -1,13 +1,13 @@
 var RawRequest = include('classes/net'),
 	CookieManager = include('classes/cookiemanager'),
 	loadConfig = include('classes/configmanager'),
-	fs = require('fs'),
 	url = require('url'),
 
 	parseString = require('xml2js').parseString,
 	Village = include('classes/village');
 
 var worldConfig = {};
+
 
 function World(data) {
 	var self = this;
@@ -25,7 +25,7 @@ function World(data) {
 	this.cookies = new CookieManager();
 	this.login(this.refreshVillagesList.bind(this));
 	
-	Object.defineProperty(this, 'util', {get: function() { return worldConfig[self.world] && worldConfig[self.world].util; }});
+	Object.defineproperty(this, 'util', {get: function() { return worldConfig[self.world] && worldConfig[self.world].util; }});
 	Object.defineProperty(this, 'worldConfig', {get: function() { return worldConfig[self.world]; }});
 	
 	if (!worldConfig[self.world]) {
@@ -79,7 +79,6 @@ World.prototype = {
 		this.getVillage(data.village.id).extend(villageProperties.extend(true, data.village)); // copy only listed properties
 	},
 	parseInfo: function(str) {
-		var data;
 		var cs = str.indexOf('game_data = ')+12, ce = str.indexOf('};', cs)+1;
 		var data = JSON.parse(str.substr(cs, ce-cs));
 		this.onNewGameData(data);
@@ -131,7 +130,6 @@ World.prototype = {
 			console.log(this.trace, 'Scanned village:', d.id);
 			// example: {"id":1337,"name":"My Very First Village","coordsText":"465|586","x":465,"y":586,"coords":[465,586],"points":1337,"res":[1000,1000,0],"storage":400000,"farm":{"used":239,"total":240,"free":1}}
 		}
-		
 	},
 	getVillage: function (id) {
 		return Village(id, this);
@@ -150,7 +148,7 @@ World.prototype = {
 			json: true
 		});
 	},
-	post: function(screen, params, data, callback, errorCallback) {
+	post: function(screen, params, data, callback, errorCallback, agent) {
 		params.screen = screen;
 		params.h = this.data.csrf;
 		this.request({
@@ -163,7 +161,8 @@ World.prototype = {
 			callback: callback,
 			errorCallback: errorCallback,
 			json: true,
-			data: data
+			data: data,
+			agent: agent
 		});
 	},
 	request: function(config) { // request for page, basic checks for bot verification and session timeout
@@ -206,16 +205,16 @@ World.prototype = {
 				if (config.json) {
 					try {
 						str = JSON.parse(str);
-					} catch(e) {};
+					} catch(e) {}
 					if (str.game_data) {
 						self.onNewGameData(str.game_data);
 					}
 					var arg = str;
-					if (str.content)
-						arg = str.content
-					else if (str.response && str.response !== 'partial_reload')
+					if (str.content) {
+						arg = str.content;
+					} else if (str.response && str.response !== 'partial_reload') {
 						arg = str.response;
-					if (str.error && config.errorCallback) {
+					} if (str.error && config.errorCallback) {
 						config.errorCallback(str.error, str);
 					} else {
 						callback(arg, str);
@@ -329,6 +328,42 @@ World.prototype = {
 	},
 	notify: function(what) {
 		return this.player.notify('[' + this.world + '] ' + what);
+	},
+	addCommand: function(att) { 
+		// it takes troops array, date of arrival (or null), target, source and type (attack/support)
+		// returns id of attack or 0 in case it can't be sent
+		if (!att.sendDate && att.date) {
+			att.sendDate = att.date - this.util.getTravelTime(att.troops, att.source, att.target, att.type);
+		} else if (!att.date && !att.sendDate) {
+			this.sendCommand(att);
+		}
+		if (!this.config.commandList) {
+			this.config.commandList = [att];
+		} else {
+			var i = 0;
+			while (i < this.config.commandList.length && this.config.commandList[i].sendDate < att.sendDate) {
+				i++;
+			}
+			this.config.commandList.splice(i, 0, att);
+			this.sendCommand();
+		}
+	},
+	sendCommand: function(att) { 
+		// need to check here if next command is in <10 seconds, and if so then create sendCommand timeout
+		var maxTime = Date.now() + 10*1000;
+		for (var i = 0; i < this.config.commandList.length; i++) {
+			var a = this.config.commandList[i];
+			if (a.sendDate > maxTime) { break; }
+			if (!a.timeout) {
+				a.timeout = setTimeout(this.sendCommand.bind(this), a.sendDate-5000 - Date.now(), a); // timeout of sendCommand
+			}
+		}
+		if (!att) { return; }
+		att.source.sendAttack(att.target, att.troops, function() {
+			console.log('Successfully sent!');
+		}, function(err) {
+			console.log('Not sent! Error: ', err);
+		}, att.sendTime); // target, troops, onSuccess, onError, sendTime
 	},
 	getValidVillageId: function() {
 		for (var i in this.villageList) {

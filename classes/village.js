@@ -1,5 +1,5 @@
 var Villages = {};
-
+var http = require('http');
 var units = ['spear', 'sword', 'axe', 'archer', 'spy', 'light', 'marcher', 'heavy', 'ram', 'catapult', 'knight', 'snob'];
 
 function Village(id, player) {
@@ -51,7 +51,6 @@ Village.prototype = {
 			if (d[0] === 'eco') {
 				if (eco[1] < parseInt(d[1], 10)) {
 					return eco[0];
-					break;
 				}
 			} else if ((data[d[0]] ? data[d[0]].level_next-1 : 0) < parseInt(d[1], 10)) {
 				return d[0];
@@ -60,9 +59,9 @@ Village.prototype = {
 		return false;
 	},
 	parseBuildingsData: function(BuildingsData, order_count) {
-		var buildingOrder = 'iron|stone|wood|place|stone,2|wood,2|iron,2|stone,3|stone,4|wood,3|wood,4|wood,5|wood,6|stone,5|main,2|storage,3|wood,8|stone,6|iron,6|main,3|wood,9|stone,8|barracks|wood,11|stone,11|iron,10|wood,12|stone,12|eco,15|main,4|main,5|storage,3|wood,16|stone,16|wood,17|stone,17|wood,18|stone,18|iron,16|stone,19|wood,19|stone,20|wood,20|stone,21|wood,21|iron,17|stone,22|wood,22|stone,23|wood,23|iron,20|stone,25|wood,25|main,10|wall,5|main,15|wall,10|barracks,5|smith,5|barracks,10|smith,10|stable,3|smith,2|farm,2|market|barracks,2|barracks,3|smith,3|main,6|barracks,4|storage,4|main,8|farm,4|smith,4|smith,5|barracks,5|storage,5|storage,6|market,2|market,3|main,9|main,10|stable|stable,2|stable,3|wall|storage,10|farm,10|statue|eco,13|main,13|eco,19|main,17|storage,17|main,20|garage,5|storage,20|eco,25|stable,5|market,10|smith,15|barracks,15|wall,15|smith,20|snob|eco,26|eco,27|eco,28|eco,29|eco,30|storage,30|farm,30|barracks,10|stable,8|garage,3|barracks,15|stable,10|market,20|barracks,20|stable,17|garage,10|barracks,25|stable,20|hide,10'.split('|');
-		var building = this.getNextItemInBuildingQueue(buildingOrder, BuildingsData);
-		var v = this;
+		var buildingOrder = 'iron|stone|wood|place|stone,2|wood,2|iron,2|stone,3|stone,4|wood,3|wood,4|wood,5|wood,6|stone,5|main,2|storage,3|wood,8|stone,6|iron,6|main,3|wood,9|stone,8|barracks|wood,11|stone,11|iron,10|wood,12|stone,12|eco,15|main,4|main,5|storage,3|wood,16|stone,16|wood,17|stone,17|wood,18|stone,18|iron,16|stone,19|wood,19|stone,20|wood,20|stone,21|wood,21|iron,17|stone,22|wood,22|stone,23|wood,23|iron,20|stone,25|wood,25|main,10|wall,5|main,15|wall,10|barracks,5|smith,5|barracks,10|smith,10|stable,3|smith,2|farm,2|market|barracks,2|barracks,3|smith,3|main,6|barracks,4|storage,4|main,8|farm,4|smith,4|smith,5|barracks,5|storage,5|storage,6|market,2|market,3|main,9|main,10|stable|stable,2|stable,3|wall|storage,10|farm,10|statue|eco,13|main,13|eco,19|main,17|storage,17|main,20|garage,5|storage,20|eco,25|stable,5|market,10|smith,15|barracks,15|wall,15|smith,20|snob|eco,26|eco,27|eco,28|eco,29|eco,30|storage,30|farm,30|barracks,10|stable,8|garage,3|barracks,15|stable,10|market,20|barracks,20|stable,17|garage,10|barracks,25|stable,20|hide,10'.split('|'),
+			building = this.getNextItemInBuildingQueue(buildingOrder, BuildingsData),
+			v = this, d;
 		while (building) {
 			d = BuildingsData[building];
 			var err = d.error || '',
@@ -110,15 +109,16 @@ Village.prototype = {
 			console.log('set new check timeout in ' + 30*60 + ' seconds.');
 		}
 	},
-	sendAttack: function(target, troops, onSuccess, onError) { // {id: 17000, x: 444, y: 666}, [0,0,0,0,0,0,0,0,0,0]
+	sendAttack: function(target, troops, onSuccess, onError, sendTime) { // {id: 17000, x: 444, y: 666}, [0,0,0,0,0,0,0,0,0,0]
 		var self = this;
 		if (!this.player.commandSecret) { 
 			if (!target.id) {
 				var wioski = this.player.worldConfig.wioski,
 					n = target.x + '|' + target.y;
 				
-				if (!wioski)
+				if (!wioski) {
 					wioski = this.player.worldConfig.wioski = {};
+				}
 
 				if (wioski[n]) {
 					target.id = wioski[n].id;
@@ -151,6 +151,10 @@ Village.prototype = {
 		for (var i = 0; i < units.length; i++) {
 			data[units[i]] = (troops[i] || '');
 		}
+		var agent;
+		if (sendTime) {
+			agent = new http.Agent({keepAlive: true, keepAliveMsecs: 20000}); // try not to close connection: more accurate timing
+		} 
 		this.player.post('place', {
 			ajax: 'confirm'
 		}, data, function (result) {
@@ -162,19 +166,31 @@ Village.prototype = {
 			for (var i = 0; (i < units.length) && (i < troops.length); i++) {
 				data[units[i]] = (troops[i] || '');
 			}
-			self.player.post('place', {
-				ajaxaction: 'popup_command'
-			}, data, function (result, ret) {
-				if (onSuccess) { onSuccess(); }
-			}, function(err, ret) {
-				if (onError) onError(err);
-			});
-		}, function(err, ret) {
-			if (onError) onError(err);
-		});
+			if (sendTime) {
+				setTimeout(function() {
+					self.player.post('place', {
+						ajaxaction: 'popup_command'
+					}, data, function () { // result, ret
+						if (onSuccess) { onSuccess(); }
+					}, function(err) { // ret
+						if (onError) { onError(err); }
+					}, agent);
+				}, sendTime - Date.now() - 150);
+			} else {
+				self.player.post('place', {
+					ajaxaction: 'popup_command'
+				}, data, function () { // result, ret
+					if (onSuccess) { onSuccess(); }
+				}, function(err) { // ret
+					if (onError) { onError(err); }
+				});
+			}
+		}, function(err) { // ret
+			if (onError) { onError(err); }
+		}, agent);
 	},
 	manage: function() {
-		var village_id = this.id;
+		// var village_id = this.id;
 		/*if (VillageId[village_id].lastupdate < new Date().getTime()+10*60*1000) {
 			this.updateInfo(village_id);
 			return;
