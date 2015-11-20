@@ -109,7 +109,7 @@ Utility.prototype = {
 		return Math.sqrt((a.x-b.x)*(a.x-b.x)+(a.y-b.y)*(a.y-b.y))
 	},
 	getTravelTime: function(troops, a, b, type) {
-		int len = troops.length;
+		var len = troops.length;
 		if (units_speed.length < len)
 			len = units_speed.length;
 		var speed = 0;
