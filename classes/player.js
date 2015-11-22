@@ -40,8 +40,12 @@ function Player(data) {
 				])
 			});
 		};
-		bot.on('connect_failed', function() {
-			setTimeout(reconnect,3000);
+		bot.on('connect_failed', function(err) {
+			if (err.code === 403) {
+				console.log("Failed to connect to hangouts, auth invalid. (403)");
+			} else {
+				setTimeout(reconnect,3000);
+			}
 		});
 		bot.on('chat_message', function(ev) {
 			var sender = ev.sender_id.chat_id;

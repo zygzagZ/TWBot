@@ -1,5 +1,5 @@
 var Villages = {};
-var http = require('http');
+var KeepAliveAgent = include('classes/keep-alive-agent');
 var units = ['spear', 'sword', 'axe', 'archer', 'spy', 'light', 'marcher', 'heavy', 'ram', 'catapult', 'knight', 'snob'];
 
 function Village(id, player) {
@@ -136,11 +136,11 @@ Village.prototype = {
 			}
 			this.player.get('place', {
 				ajax: 'command',
-				target: target.id
+				target: target.id,
 			}, function(r) {
 				var tmp = r.dialog.match(/<input type="hidden" name="([a-z0-9]+)" value="([a-z0-9]+)" \/>/);
 				self.player.commandSecret = [tmp[1], tmp[2]];
-				self.sendAttack(target, troops, onSuccess, onError);
+				self.sendAttack(target, troops, onSuccess, onError, sendTime);
 			});
 			return;
 		}
@@ -153,10 +153,11 @@ Village.prototype = {
 		}
 		var agent;
 		if (sendTime) {
-			agent = new http.Agent({keepAlive: true, keepAliveMsecs: 20000}); // try not to close connection: more accurate timing
+			agent = new KeepAliveAgent({maxSockets: 1, keepAlive: true, keepAliveMsecs: 20000}); // try not to close connection: more accurate timing
 		} 
 		this.player.post('place', {
-			ajax: 'confirm'
+			ajax: 'confirm',
+			village: self.id
 		}, data, function (result) {
 			var data = {attack:'true', x: target.x, y:target.y},
 				ch = result.dialog.match(/<input type="hidden" name="ch" value="([a-z0-9]+)" \/>/)[1], 
@@ -169,7 +170,8 @@ Village.prototype = {
 			if (sendTime) {
 				setTimeout(function() {
 					self.player.post('place', {
-						ajaxaction: 'popup_command'
+						ajaxaction: 'popup_command',
+						village: self.id
 					}, data, function () { // result, ret
 						if (onSuccess) { onSuccess(); }
 					}, function(err) { // ret
@@ -178,7 +180,8 @@ Village.prototype = {
 				}, sendTime - Date.now() - 150);
 			} else {
 				self.player.post('place', {
-					ajaxaction: 'popup_command'
+					ajaxaction: 'popup_command',
+					village: self.id
 				}, data, function () { // result, ret
 					if (onSuccess) { onSuccess(); }
 				}, function(err) { // ret

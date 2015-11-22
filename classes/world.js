@@ -20,12 +20,14 @@ function World(data) {
 	
 	loadConfig('p' + data.username + '.w' + this.world, function(conf) {
 		self.config = conf;
+		if (!conf.commandList)
+			conf.commandList = [];
 	});
 	this.trace = '['+this.world + '/'+data.username+']';
 	this.cookies = new CookieManager();
 	this.login(this.refreshVillagesList.bind(this));
 	
-	Object.defineproperty(this, 'util', {get: function() { return worldConfig[self.world] && worldConfig[self.world].util; }});
+	Object.defineProperty(this, 'util', {get: function() { return worldConfig[self.world] && worldConfig[self.world].util; }});
 	Object.defineProperty(this, 'worldConfig', {get: function() { return worldConfig[self.world]; }});
 	
 	if (!worldConfig[self.world]) {
@@ -41,12 +43,15 @@ function World(data) {
 						});
 					}
 				});
+			} else {
+				conf.util = new Utility(conf.util);
 			}
 		});
 	}
 	if (data.trophies) {
 		setTimeout(this.initTrophies.bind(this), rand(10000, 20000));
 	}
+	setInterval(this.sendCommand.bind(this), 24*60*60000);
 }
 
 World.prototype = {
@@ -330,40 +335,59 @@ World.prototype = {
 		return this.player.notify('[' + this.world + '] ' + what);
 	},
 	addCommand: function(att) { 
-		// it takes troops array, date of arrival (or null), target, source and type (attack/support)
+		// it takes troops array, time of arrival (or null), target, source and type (attack/support)
 		// returns id of attack or 0 in case it can't be sent
-		if (!att.sendDate && att.date) {
-			att.sendDate = att.date - this.util.getTravelTime(att.troops, att.source, att.target, att.type);
-		} else if (!att.date && !att.sendDate) {
+
+		if (typeof att.source === 'number') {
+			att.source = this.getVillage(att.source);
+		}
+		if (!att.source.x || !att.source.y) {
+			return false;
+		}
+		if (!att.sendTime && att.time) {
+			att.sendTime = parseInt(att.time,10) - this.util.getTravelTime(att.troops, att.source, att.target, att.type);
+		} else if (!att.time && !att.sendTime) {
 			this.sendCommand(att);
+			return;
 		}
-		if (!this.config.commandList) {
-			this.config.commandList = [att];
-		} else {
-			var i = 0;
-			while (i < this.config.commandList.length && this.config.commandList[i].sendDate < att.sendDate) {
-				i++;
+		if (!att.id) {
+			att.id = Math.random();
+		}
+		var i = 0;
+		while (i < this.config.commandList.length && this.config.commandList[i].sendTime < att.sendTime) {
+			i++;
+		}
+		if (!att.timeout && (att.sendTime < Date.now()+10000 || (i === 0 && att.sendTime < Date.now()+25*60*60000))) { //can schedule it now...
+			att.timeout = setTimeout(this.sendCommand.bind(this), Math.max(att.sendTime-2000 - Date.now(), 0), att); // timeout of sendCommand
+		}
+		if (i == 0) {
+			var second_attack = this.config.commandList[0]; // only keep second attack if its in next 10 seconds, else unschedule it
+			if (second_attack && second_attack.timeout && second_attack.sendTime > Date.now() + 10000) {
+				clearTimeout(second_attack.timeout)
+				delete second_attack.timeout;
 			}
-			this.config.commandList.splice(i, 0, att);
-			this.sendCommand();
 		}
+		this.config.commandList.splice(i, 0, att);
+		return true;
 	},
 	sendCommand: function(att) { 
 		// need to check here if next command is in <10 seconds, and if so then create sendCommand timeout
 		var maxTime = Date.now() + 10*1000;
+		if (att) {
+			att.source.sendAttack(att.target, att.troops, function() {
+				console.log('Successfully sent!');
+			}, function(err) {
+				console.log('Not sent! Error: ', err);
+			}, att.sendTime); // target, troops, onSuccess, onError, sendTime
+
+			this.config.commandList.splice(this.config.commandList.indexOf(att), 1);	
+		}
 		for (var i = 0; i < this.config.commandList.length; i++) {
 			var a = this.config.commandList[i];
-			if (a.sendDate > maxTime) { break; }
-			if (!a.timeout) {
-				a.timeout = setTimeout(this.sendCommand.bind(this), a.sendDate-5000 - Date.now(), a); // timeout of sendCommand
+			if (!a.timeout && (a.sendTime < maxTime || (i === 0 && a.sendTime < Date.now()+25*60*60000))) { //can schedule it now...
+				a.timeout = setTimeout(this.sendCommand.bind(this), a.sendTime-2000 - Date.now(), a); // timeout of sendCommand
 			}
 		}
-		if (!att) { return; }
-		att.source.sendAttack(att.target, att.troops, function() {
-			console.log('Successfully sent!');
-		}, function(err) {
-			console.log('Not sent! Error: ', err);
-		}, att.sendTime); // target, troops, onSuccess, onError, sendTime
 	},
 	getValidVillageId: function() {
 		for (var i in this.villageList) {
