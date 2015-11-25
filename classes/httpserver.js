@@ -1,14 +1,14 @@
 var http = require('http');
 
 function parseHttpRequest(p, data) {
-	var ret = '';
+	var ret = '', i, cmd;
 	if (data.type === 'cookies') {
 		if (typeof data.playerdomain === 'string') {
 			return p.cookies.getCookiesString(data.playerdomain, '/');
 		}
 	} else if (data.type === 'addCommand') {
 		if (typeof data.command === 'object') {
-			var cmd = data.command;
+			cmd = data.command;
 			if (cmd.source && cmd.target && (cmd.time || cmd.sendTime) && cmd.troops) {
 				if (!p.addCommand(cmd)) {
 					return [403, '{"error":"Invalid data given."}'];
@@ -19,36 +19,37 @@ function parseHttpRequest(p, data) {
 		}
 		return [403, '{"error":"No data given."}'];
 	} else if (data.type === 'commandList') {
-		var ret = [];
-		for (var i = 0; i < p.config.commandList.length; i++) {
-			var cmd = p.config.commandList[i];
+		ret = [];
+		for (i = 0; i < p.config.commandList.length; i++) {
+			cmd = p.config.commandList[i];
 			ret.push({source:{x:cmd.source.x, y:cmd.source.y, id:cmd.source.id, name:cmd.source.name}, target: cmd.target, troops: cmd.troops, time: cmd.time, id:cmd.id});
 		}
 		return JSON.stringify(ret);
 	} else if (data.type === 'commandInfo') {
-		if (typeof data.id !== 'number') 
+		if (typeof data.id !== 'number') {
 			return [403, '{"error":"No command id."}'];
-		for (var i = 0; i < p.config.commandList.length; i++) {
-			var cmd = p.config.commandList[i];
-			if (cmd.id == data.id)
+		}
+		for (i = 0; i < p.config.commandList.length; i++) {
+			cmd = p.config.commandList[i];
+			if (cmd.id === data.id) {
 				return JSON.stringify({source:{x:cmd.source.x, y:cmd.source.y, id:cmd.source.id, name:cmd.source.name}, target: cmd.target, troops: cmd.troops, time: cmd.time, id:cmd.id});
+			}
 		}
 		return [403, '{"error":"Non-existent command id."}'];
-	} else if (data.type === "removeCommand") {
-		if (typeof data.id !== 'number') 
+	} else if (data.type === 'removeCommand') {
+		if (typeof data.id !== 'number') {
 			return [403, '{"error":"No command id."}'];
-		var cmd;
-		for (var i = 0; i < p.config.commandList.length; i++) {
+		}
+		for (i = 0; i < p.config.commandList.length; i++) {
 			if (p.config.commandList[i].id === data.id) {
 				p.config.commandList.splice(i, 1);
 				return '';
 			}
 		}
-		if (!cmd) 
-			return [403, '{"error":"Non-existent command id."}'];
+		return [403, '{"error":"Non-existent command id."}'];
 	} else if (data.type === 'villageList') {
-		var ret = [];
-		for (var i in p.data.villageList) {
+		ret = [];
+		for (i in p.data.villageList) {
 			ret.push({x:p.data.villageList[i].x, y:p.data.villageList[i].y, id:p.data.villageList[i].id, name:p.data.villageList[i].name});
 		}
 		return JSON.stringify(ret);

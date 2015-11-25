@@ -340,8 +340,11 @@ World.prototype = {
 
 		if (typeof att.source === 'number') {
 			att.source = this.getVillage(att.source);
+		} else if (!att.source.sendAttack && att.source.id) {
+			att.source = this.getVillage(att.source.id);
 		}
-		if (!att.source.x || !att.source.y) {
+
+		if (!att.source.x || !att.source.y || !att.source.sendAttack) {
 			return false;
 		}
 		if (!att.sendTime && att.time) {
