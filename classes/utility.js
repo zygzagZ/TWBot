@@ -123,7 +123,9 @@ Utility.prototype = {
 			}
 
 		}
-		return speed * 60000 * this.distance(a,b);
+		var ret = speed * 60000 * this.distance(a,b);
+		ret -= ret % 1000; // drop ms
+		return ret;
 	}
 };
 global.rand = function(a,b) {
