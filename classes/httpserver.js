@@ -22,7 +22,7 @@ function parseHttpRequest(p, data) {
 		ret = [];
 		for (i = 0; i < p.config.commandList.length; i++) {
 			cmd = p.config.commandList[i];
-			ret.push({source:{x:cmd.source.x, y:cmd.source.y, id:cmd.source.id, name:cmd.source.name}, target: cmd.target, troops: cmd.troops, time: cmd.time, id:cmd.id});
+			ret.push({source:{x:cmd.source.x, y:cmd.source.y, id:cmd.source.id, name:cmd.source.name}, target: cmd.target, troops: cmd.troops, time: cmd.time, id:cmd.id, sendTime:cmd.sendTime});
 		}
 		return JSON.stringify(ret);
 	} else if (data.type === 'commandInfo') {
@@ -32,7 +32,7 @@ function parseHttpRequest(p, data) {
 		for (i = 0; i < p.config.commandList.length; i++) {
 			cmd = p.config.commandList[i];
 			if (cmd.id === data.id) {
-				return JSON.stringify({source:{x:cmd.source.x, y:cmd.source.y, id:cmd.source.id, name:cmd.source.name}, target: cmd.target, troops: cmd.troops, time: cmd.time, id:cmd.id});
+				return JSON.stringify({source:{x:cmd.source.x, y:cmd.source.y, id:cmd.source.id, name:cmd.source.name}, target: cmd.target, troops: cmd.troops, time: cmd.time, id:cmd.id, sendTime:cmd.sendTime});
 			}
 		}
 		return [403, '{"error":"Non-existent command id."}'];
