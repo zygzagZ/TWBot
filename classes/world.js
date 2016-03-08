@@ -20,8 +20,9 @@ function World(data) {
 	
 	loadConfig('p' + data.username + '.w' + this.world, function(conf) {
 		self.config = conf;
-		if (!conf.commandList)
+		if (!conf.commandList) {
 			conf.commandList = [];
+		}
 	});
 	this.trace = '['+this.world + '/'+data.username+']';
 	this.cookies = new CookieManager();
@@ -93,7 +94,7 @@ World.prototype = {
 	},
 	refreshVillagesList: function() {
 		this.request({
-			url:'http://pl'+this.world+'.plemiona.pl/game.php?screen=overview_villages&mode=prod',
+			url:'http://pl'+this.world+'.plemiona.pl/game.php?screen=overview_villages&mode=prod&group=0&page=-1', 
 			callback: this.onVillagesList.bind(this),
 		});
 	},
@@ -219,7 +220,9 @@ World.prototype = {
 						arg = str.content;
 					} else if (str.response && str.response !== 'partial_reload') {
 						arg = str.response;
-					} if (str.error && config.errorCallback) {
+					}
+
+					if (str.error && config.errorCallback) {
 						config.errorCallback(str.error, str);
 					} else {
 						callback(arg, str);
@@ -348,10 +351,13 @@ World.prototype = {
 			return false;
 		}
 		if (!att.sendTime && att.time) {
-			att.sendTime = parseInt(att.time,10) - this.util.getTravelTime(att.troops, att.source, att.target, att.type);
+			att.sendTime = parseInt(att.time,10) - this.util.getTravelTime(att.troops, att.source, att.target, att.support);
 		} else if (!att.time && !att.sendTime) {
 			this.sendCommand(att);
 			return;
+		}
+		if (!att.time) {
+			att.time = att.sendTime + this.util.getTravelTime(att.troops, att.source, att.target, att.support);
 		}
 		if (!att.id) {
 			att.id = Math.random();
@@ -363,10 +369,10 @@ World.prototype = {
 		if (!att.timeout && (att.sendTime < Date.now()+10000 || (i === 0 && att.sendTime < Date.now()+25*60*60000))) { //can schedule it now...
 			att.timeout = setTimeout(this.sendCommand.bind(this), Math.max(att.sendTime-2000 - Date.now(), 0), att); // timeout of sendCommand
 		}
-		if (i == 0) {
+		if (i === 0) {
 			var second_attack = this.config.commandList[0]; // only keep second attack if its in next 10 seconds, else unschedule it
 			if (second_attack && second_attack.timeout && second_attack.sendTime > Date.now() + 10000) {
-				clearTimeout(second_attack.timeout)
+				clearTimeout(second_attack.timeout);
 				delete second_attack.timeout;
 			}
 		}
@@ -381,7 +387,7 @@ World.prototype = {
 				console.log('Successfully sent!');
 			}, function(err) {
 				console.log('Not sent! Error: ', err);
-			}, att.sendTime); // target, troops, onSuccess, onError, sendTime
+			}, att.sendTime, att.support); // target, troops, onSuccess, onError, sendTime
 
 			this.config.commandList.splice(this.config.commandList.indexOf(att), 1);	
 		}

@@ -110,16 +110,17 @@ Utility.prototype = {
 	},
 	getTravelTime: function(troops, a, b, type) {
 		var len = troops.length;
-		if (units_speed.length < len)
+		if (units_speed.length < len) {
 			len = units_speed.length;
+		}
 		var speed = 0;
 		if (type && len > 10 && troops[10] > 0) { // it's support with knight
 			speed = 10;
 		} else { // it's attack or support without knight
 			for (var i = 0; i < len; i++) {
-				if (troops[i] > 0)
-					if (speed < units_speed[i])
-						speed = units_speed[i];
+				if (troops[i] > 0 && speed < units_speed[i]) {
+					speed = units_speed[i];
+				}
 			}
 
 		}

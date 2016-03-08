@@ -94,7 +94,7 @@ function Request(config) { // url, cookies, callback, data, previousHost, previo
 		}
 		req.end();
 	} catch(e) {
-		console.error(e, JSON.stringify(options));
+		console.error('Network Request Error: ', e, JSON.stringify(options));
 	}
 }
 

@@ -69,7 +69,7 @@ Village.prototype = {
 				needStorage = err.indexOf(BuildingsData.storage.name) >= 0; // need to build storage first
 				
 
-			console.log('wannabuild: ', building, 'err: ', err, 'needFarm: ', needFarm, 'needStorage: ', needStorage);
+			// console.log('wannabuild: ', building, 'err: ', err, 'needFarm: ', needFarm, 'needStorage: ', needStorage);
 
 			if (needFarm) {
 				building = 'farm';
@@ -90,7 +90,7 @@ Village.prototype = {
 			break;
 		}
 		if (BuildingsData[building] && BuildingsData[building].can_build && !BuildingsData[building].error) {
-			console.log('BUILDING: ' + building);
+			// console.log('BUILDING: ' + building);
 			this.player.request({
 				url: BuildingsData[building].build_link,
 				callback: function() {
@@ -109,7 +109,7 @@ Village.prototype = {
 			console.log('set new check timeout in ' + 30*60 + ' seconds.');
 		}
 	},
-	sendAttack: function(target, troops, onSuccess, onError, sendTime) { // {id: 17000, x: 444, y: 666}, [0,0,0,0,0,0,0,0,0,0]
+	sendAttack: function(target, troops, onSuccess, onError, sendTime, isSupport) { // {id: 17000, x: 444, y: 666}, [0,0,0,0,0,0,0,0,0,0]
 		var self = this;
 		if (!this.player.commandSecret) { 
 			if (!target.id) {
@@ -140,12 +140,17 @@ Village.prototype = {
 			}, function(r) {
 				var tmp = r.dialog.match(/<input type="hidden" name="([a-z0-9]+)" value="([a-z0-9]+)" \/>/);
 				self.player.commandSecret = [tmp[1], tmp[2]];
-				self.sendAttack(target, troops, onSuccess, onError, sendTime);
+				self.sendAttack(target, troops, onSuccess, onError, sendTime, isSupport);
 			});
 			return;
 		}
 		
-		var data = {x:target.x, y:target.y, input: '', attack: 'l'};
+		var data = {x:target.x, y:target.y, input: ''};
+		if (isSupport) {
+			data.support = 'Pomoc';
+		} else {
+			data.attack = 'Atak';
+		}
 		data[this.player.commandSecret[0]] = this.player.commandSecret[1];
 		
 		for (var i = 0; i < units.length; i++) {
@@ -159,9 +164,11 @@ Village.prototype = {
 			ajax: 'confirm',
 			village: self.id
 		}, data, function (result) {
-			var data = {attack:'true', x: target.x, y:target.y},
+			var data = {x: target.x, y:target.y},
 				ch = result.dialog.match(/<input type="hidden" name="ch" value="([a-z0-9]+)" \/>/)[1], 
 				action_id = result.dialog.match(/<input type="hidden" name="action_id" value="([0-9]+)" \/>/)[1];
+
+			data[isSupport ? 'support' : 'attack'] = 'true';
 			data.ch = ch;
 			data.action_id = action_id;
 			for (var i = 0; (i < units.length) && (i < troops.length); i++) {
