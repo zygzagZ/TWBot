@@ -4,29 +4,25 @@ var RawRequest = include('classes/net'),
 	url = require('url'),
 
 	parseString = require('xml2js').parseString,
-	Village = include('classes/village');
+	Village = include('classes/village'),
+	Command = include('classes/command');
 
 var worldConfig = {};
-
 
 function World(data) {
 	var self = this;
 	this.userAgent = data.userAgent;
 	this.player = data.player;
 
-	this.data = {villageList: new Village.List(), settings: data}; // TODO: store valuable values from game_data here
+	this.data = {villageList: new Village.List(), settings: data}; // TODO: store values from game_data here
 
 	this.world = data.world;
 	
-	loadConfig('p' + data.username + '.w' + this.world, function(conf) {
-		self.config = conf;
-		if (!conf.commandList) {
-			conf.commandList = [];
-		}
-	});
+	
 	this.trace = '['+this.world + '/'+data.username+']';
 	this.cookies = new CookieManager();
-	this.login(this.refreshVillagesList.bind(this));
+	// We first need to load villages, only then we can load config
+	this.login(this.refreshVillagesList.bind(this, this.loadConfig.bind(this)));
 	
 	Object.defineProperty(this, 'util', {get: function() { return worldConfig[self.world] && worldConfig[self.world].util; }});
 	Object.defineProperty(this, 'worldConfig', {get: function() { return worldConfig[self.world]; }});
@@ -45,17 +41,27 @@ function World(data) {
 					}
 				});
 			} else {
-				conf.util = new Utility(conf.util);
+				conf.util = new Utility(conf.util.data);
 			}
 		});
 	}
-	if (data.trophies) {
-		setTimeout(this.initTrophies.bind(this), rand(10000, 20000));
-	}
-	setInterval(this.sendCommand.bind(this), 24*60*60000);
 }
 
 World.prototype = {
+	loadConfig: function() {
+		var self = this;
+		loadConfig('p' + this.data.settings.username + '.w' + this.world, function(conf) {
+			self.config = conf;
+			if (!conf.commandList) {
+				conf.commandList = [];
+			}
+			if (self.data.trophies) {
+				setTimeout(self.initTrophies.bind(this), rand(10000, 20000));
+			}
+			self.sendCommand();
+			setInterval(self.sendCommand.bind(self), 24*60*60000);
+		}, {player: self});
+	},
 	login: function(success) {
 		var self = this;
 		console.log(this.trace,'logging in');	
@@ -92,13 +98,13 @@ World.prototype = {
 		// TODO: parse and store even more overview data
 		return data.village.id;
 	},
-	refreshVillagesList: function() {
+	refreshVillagesList: function(cb) {
 		this.request({
 			url:'http://pl'+this.world+'.plemiona.pl/game.php?screen=overview_villages&mode=prod&group=0&page=-1', 
-			callback: this.onVillagesList.bind(this),
+			callback: this.onVillagesList.bind(this, cb),
 		});
 	},
-	onVillagesList: function(str) {
+	onVillagesList: function(cb, str) {
 		str = str.replace(/<span class="grey"\>\.<\/span\>/g, '');
 		var startPos = str.indexOf('</tr>', str.indexOf('overview_table')+1)+5,
 			finishPos = str.lastIndexOf('</tr>', str.indexOf('</table>', startPos)),
@@ -136,9 +142,10 @@ World.prototype = {
 			console.log(this.trace, 'Scanned village:', d.id);
 			// example: {"id":1337,"name":"My Very First Village","coordsText":"465|586","x":465,"y":586,"coords":[465,586],"points":1337,"res":[1000,1000,0],"storage":400000,"farm":{"used":239,"total":240,"free":1}}
 		}
+		if (cb) { cb(); }
 	},
 	getVillage: function (id) {
-		return Village(id, this);
+		return new Village(id, this);
 	},
 	get: function(screen, params, callback, errorCallback) {
 		params.screen = screen;
@@ -340,44 +347,7 @@ World.prototype = {
 	addCommand: function(att) { 
 		// it takes troops array, time of arrival (or null), target, source and type (attack/support)
 		// returns id of attack or 0 in case it can't be sent
-
-		if (typeof att.source === 'number') {
-			att.source = this.getVillage(att.source);
-		} else if (!att.source.sendAttack && att.source.id) {
-			att.source = this.getVillage(att.source.id);
-		}
-
-		if (!att.source.x || !att.source.y || !att.source.sendAttack) {
-			return false;
-		}
-		if (!att.sendTime && att.time) {
-			att.sendTime = parseInt(att.time,10) - this.util.getTravelTime(att.troops, att.source, att.target, att.support);
-		} else if (!att.time && !att.sendTime) {
-			this.sendCommand(att);
-			return;
-		}
-		if (!att.time) {
-			att.time = att.sendTime + this.util.getTravelTime(att.troops, att.source, att.target, att.support);
-		}
-		if (!att.id) {
-			att.id = Math.random();
-		}
-		var i = 0;
-		while (i < this.config.commandList.length && this.config.commandList[i].sendTime < att.sendTime) {
-			i++;
-		}
-		if (!att.timeout && (att.sendTime < Date.now()+10000 || (i === 0 && att.sendTime < Date.now()+25*60*60000))) { //can schedule it now...
-			att.timeout = setTimeout(this.sendCommand.bind(this), Math.max(att.sendTime-2000 - Date.now(), 0), att); // timeout of sendCommand
-		}
-		if (i === 0) {
-			var second_attack = this.config.commandList[0]; // only keep second attack if its in next 10 seconds, else unschedule it
-			if (second_attack && second_attack.timeout && second_attack.sendTime > Date.now() + 10000) {
-				clearTimeout(second_attack.timeout);
-				delete second_attack.timeout;
-			}
-		}
-		this.config.commandList.splice(i, 0, att);
-		return true;
+		return new Command(att, this);
 	},
 	sendCommand: function(att) { 
 		// need to check here if next command is in <10 seconds, and if so then create sendCommand timeout

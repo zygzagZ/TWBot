@@ -2,14 +2,36 @@ var Villages = {};
 var KeepAliveAgent = include('classes/keep-alive-agent');
 var units = ['spear', 'sword', 'axe', 'archer', 'spy', 'light', 'marcher', 'heavy', 'ram', 'catapult', 'knight', 'snob'];
 
-function Village(id, player) {
-	this.id = parseInt(id, 10);
+function Village(data, player) {
+	var w = Villages[player.world], 
+		v;
+
+	if (!w) {
+		w = Villages[player.world] = {};
+	}
+	if (typeof data === 'number') {
+		v = w[data];
+		if (!v) {
+			w[data] = this;
+			this.id = data;
+		}
+	} else if (typeof data === 'object' && data.id) {
+		v = w[data.id];
+		if (!v) {
+			w[data.id] = this;
+			this.x = data.x;
+			this.y = data.y;
+			this.id = data.id;
+		}
+	}
+	if (v) { return v; }
+	this.id = parseInt(this.id, 10);
 	this.lastupdate = 0;
 	
 	var now=new Date().getTime();
 	player.villageManageTimeout = Math.max(player.villageManageTimeout || 0, now) + Math.random()*3000+5000; // schedule village managing
 		
-	setTimeout(this.manage.bind(this, id), player.villageManageTimeout-now);
+	setTimeout(this.manage.bind(this, this.id), player.villageManageTimeout-now);
 
 	Object.defineProperty(this, 'player', {
 		enumerable: false,
@@ -112,7 +134,7 @@ Village.prototype = {
 	sendAttack: function(target, troops, onSuccess, onError, sendTime, isSupport) { // {id: 17000, x: 444, y: 666}, [0,0,0,0,0,0,0,0,0,0]
 		var self = this;
 		if (!this.player.commandSecret) { 
-			if (!target.id) {
+			if (!target.id && target.x && target.y) {
 				var wioski = this.player.worldConfig.wioski,
 					n = target.x + '|' + target.y;
 				
@@ -208,31 +230,21 @@ Village.prototype = {
 		// TODO: managing village
 		this.getBuildingsData();	
 	},
-
+	toJSON: function() {
+		return {id: this.id, x: this.x, y:this.y, __type:'Village'};
+	}
 };
 
-function VillageFactory(id,player) {
-	var w = Villages[player.world];
-	if (!w) {
-		w = Villages[player.world] = {};
-	}
-	var v = w[id];
-	if (!v) {
-		v = w[id] = new Village(id, player);
-	}
-	return v;
-}
-
-VillageFactory.List = function() {
+Village.List = function() {
 	Object.defineProperty(this, 'length', {
 		value: 0,
 		writable: true
 	});
 	return this;
 };
-VillageFactory.List.prototype = {};
+Village.List.prototype = {};
 
-Object.defineProperty(VillageFactory.List.prototype, 'insert', {
+Object.defineProperty(Village.List.prototype, 'insert', {
 	value: function(v) {
 		if (!this[v.id]) {
 			this.length++;
@@ -241,7 +253,7 @@ Object.defineProperty(VillageFactory.List.prototype, 'insert', {
 		return v;
 	}
 });
-Object.defineProperty(VillageFactory.List.prototype, 'remove', {
+Object.defineProperty(Village.List.prototype, 'remove', {
 	value: function(v) {
 		if (this[v.id]) {
 			this.length--;
@@ -250,4 +262,4 @@ Object.defineProperty(VillageFactory.List.prototype, 'remove', {
 	}
 });
 
-module.exports = VillageFactory;
+module.exports = Village;

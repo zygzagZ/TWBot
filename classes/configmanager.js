@@ -1,11 +1,17 @@
 var globalConfig = include('config.json'),
 	RawRequest = include('classes/net'),
-	fs = require('fs');
+	fs = require('fs'),
+
+	types = {
+		Command: include('classes/command')
+	};
 
 var configs = {};
 function save() {
 	for (var fileName in configs) {
+		console.log(configs[fileName]);
 		fs.writeFileSync(fileName, JSON.stringify(configs[fileName]));
+		console.log('-----------------------------------------');
 	}
 }
 process.on('SIGINT', process.exit.bind(process, 0));
@@ -18,12 +24,16 @@ function getConfigFileName(type) {
 		return './data/world.' + type.substr(1) + '.json';
 	}
 }
-function loadConfig(type, callback) {
+function loadConfig(type, callback, data) {
 	var fileName = getConfigFileName(type);
 	fs.readFile(fileName, function(error, content) {
 		var config = {};
 		if (!error) {
-			config = JSON.parse(content);
+			config = JSON.parse(content, function(key, val) {
+				if(typeof(val) === 'object' && val.__type === 'Village') { return data.player.getVillage(val);}
+				if(typeof(val) === 'object' && types[val.__type]) { return new types[val.__type](val, data.player);}
+				return val;
+			});
 		} 
 		callback(config);
 		configs[fileName] = config;
@@ -101,10 +111,10 @@ function loadGlobalConfig(callback) { // TODO: manage various types of configs, 
 	}
 };
 
-module.exports = function(type, callback) {
+module.exports = function(type, callback, data) {
 	if (type === 'global') {
 		loadGlobalConfig(callback);
 	} else {
-		loadConfig(type, callback);
+		loadConfig(type, callback, data);
 	}
 }
