@@ -5,7 +5,8 @@ function parseHttpRequest(p, data, res) {
 	if (data.type === 'cookies') {
 		if (typeof data.playerdomain === 'string') {
 			p.refreshVillagesList(function() {
-				res.write(p.cookies.getCookiesString(data.playerdomain, '/')).end();
+				res.write(p.cookies.getCookiesString(data.playerdomain, '/'));
+				res.end();
 			});
 			return ;
 		}
