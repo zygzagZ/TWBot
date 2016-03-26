@@ -27,17 +27,15 @@ function Player(data) {
 		bot.context = {};
 		var reconnect = function() {
 			bot.connect(function() {
-				return {auth: function(){return Q.promise(function(rs){rs(data.hangouts.token)})}}
+				return {auth: function(){return Q.promise(function(rs){rs(data.hangouts.token);});}};
 			}).then(function() {
 				var conversation = bot.init.conv_states[0];
-				if (!conversation)
-					return;
-
+				if (!conversation) { return; }
 				var conv_id = conversation.conversation_id.id;
 				console.log(self.username + ': Hangouts online.');
-				return bot.sendchatmessage(bot.conv_id, [
+				return bot.sendchatmessage(conv_id, [
 					[0, 'Hello!']
-				])
+				]);
 			});
 		};
 		bot.on('connect_failed', function(err) {

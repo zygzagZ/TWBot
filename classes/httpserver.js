@@ -1,10 +1,13 @@
 var http = require('http');
 
-function parseHttpRequest(p, data) {
+function parseHttpRequest(p, data, res) {
 	var ret = '', i, cmd;
 	if (data.type === 'cookies') {
 		if (typeof data.playerdomain === 'string') {
-			return p.cookies.getCookiesString(data.playerdomain, '/');
+			p.refreshVillagesList(function() {
+				res.write(p.cookies.getCookiesString(data.playerdomain, '/')).end();
+			});
+			return ;
 		}
 	} else if (data.type === 'addCommand') {
 		if (typeof data.command === 'object') {
@@ -76,8 +79,11 @@ module.exports = function(data) {
 					if (!d.playerdomain && req.headers.playerdomain) {
 						d.playerdomain = req.headers.playerdomain;
 					}
-					var response = parseHttpRequest(data.players[i].worlds[world], d, headers);
-					if (typeof response !== 'object') {
+					var response = parseHttpRequest(data.players[i].worlds[world], d, res);
+					if (typeof response === 'undefined') {
+						res.writeHead(200, headers);
+						return;
+					} else if (typeof response !== 'object') {
 						res.writeHead(200, headers);
 						res.write(response);	
 					} else {
