@@ -98,10 +98,11 @@ World.prototype = {
 		// TODO: parse and store even more overview data
 		return data.village.id;
 	},
-	refreshVillagesList: function(cb) {
+	refreshVillagesList: function(cb, err) {
 		this.request({
 			url:'http://pl'+this.world+'.plemiona.pl/game.php?screen=overview_villages&mode=prod&group=0&page=-1', 
 			callback: this.onVillagesList.bind(this, cb),
+			error: err
 		});
 	},
 	onVillagesList: function(cb, str) {
@@ -179,7 +180,7 @@ World.prototype = {
 		});
 	},
 	request: function(config) { // request for page, basic checks for bot verification and session timeout
-		var self = this, 
+		var self = this,
 			callback = config.callback;
 		
 		if (!config.cookies) {
@@ -203,9 +204,12 @@ World.prototype = {
 			// TODO: check for bot verification
 			// TODO: check for account ban
 			// TODO: check for conservation works
-			if (str.indexOf('bot_check_image') > 0) {
-				console.log(self.trace, 'BOT CHECK IMAGE');
-				self.notify('Bot check image.');
+			if (str.toLowerCase().indexOf('ochrona botowa') > 0) {
+				console.log(self.trace, 'ANTI-BOT');
+				self.notify('Anti-Bot check.');
+				if (typeof config.error === 'function') {
+					config.error(1);
+				}
 				return;
 			}
 			if (str.indexOf('&copy;') > 0) {

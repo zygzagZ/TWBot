@@ -4,11 +4,12 @@ function parseHttpRequest(p, data, res) {
 	var ret = '', i, cmd;
 	if (data.type === 'cookies') {
 		if (typeof data.playerdomain === 'string') {
-			p.refreshVillagesList(function() {
+			var cb = function() {
 				res.write(p.cookies.getCookiesString(data.playerdomain, '/'));
 				res.end();
-			});
-			return ;
+			}
+			p.refreshVillagesList(cb, cb);
+			return;
 		}
 	} else if (data.type === 'addCommand') {
 		if (typeof data.command === 'object') {

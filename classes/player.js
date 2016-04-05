@@ -42,7 +42,7 @@ function Player(data) {
 			if (err.code === 403) {
 				console.log("Failed to connect to hangouts, auth invalid. (403)");
 			} else {
-				setTimeout(reconnect,3000);
+			//	setTimeout(reconnect,3000);
 			}
 		});
 		bot.on('chat_message', function(ev) {
@@ -83,12 +83,12 @@ Player.prototype = {
 			data = this.hangouts.context[from] = {};
 		}
 		message=message.toLowerCase();
-		if (!data.worldid) {
+		if (message.startsWith('world ')) {
 			if (message.startsWith('world ')) {
 				message = message.substr(6);
 			}
 			if (!this.worlds[message]) {
-				return 'You have to select world first! (' + this.worlds + ')';
+				return 'No such world! (' + this.worlds + ')';
 			} else {
 				data.worldid = message;
 				if (!this.hangouts.context[from][data.worldid]) {
@@ -96,6 +96,9 @@ Player.prototype = {
 				}
 				return 'Selected world "'+data.worldid+'"';
 			}
+		}
+		if (!data.worldid) {
+			return 'You have to select world first! (' + this.worlds + ')';
 		}
 		return this.worlds[data.worldid].onHangoutsMessage(from, message, this.hangouts.context[from][data.worldid]);
 	},
