@@ -248,11 +248,11 @@ World.prototype = {
 				return;
 			}
 		};
-		if (config.delay) {
+		if (config.delay && config.delay > 500) {
 			setTimeout(function() {
 				RawRequest(config);
-			}, config.delay);
-			delete config.delay;
+			}, config.delay-500);
+			config.delay = 500;
 		} else {
 			RawRequest(config);
 		}

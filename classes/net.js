@@ -6,7 +6,12 @@ http.globalAgent.keepAliveMsecs = 20000;
 http.globalAgent.keepAlive = true;
 http.globalAgent.maxFreeSockets = 50;
 function Request(config) { // url, cookies, callback, data, previousHost, previousDirectory, onRedirectTest
-	var hostPos, hostname, path, url = config.url, protocolPos = url.indexOf('//');
+	var hostPos, hostname, path, url = config.url, protocolPos = url.indexOf('//'), req;
+	if (config.delay) {
+		setTimeout(function() {
+			req.end();
+		}, config.delay);
+	}
 	if (protocolPos >= 0) {
 		url = url.substr(protocolPos+2);
 		hostPos = url.indexOf('/');
@@ -61,7 +66,7 @@ function Request(config) { // url, cookies, callback, data, previousHost, previo
 		}
 	}
 	try {
-		var req = http.request(options, function(res) {
+		req = http.request(options, function(res) {
 			console.log(res.statusCode,'||', url);
 			//console.log('HEADERS: ' + JSON.stringify(res.headers));
 			if (res.headers['set-cookie'] && config.cookies) {
@@ -92,7 +97,9 @@ function Request(config) { // url, cookies, callback, data, previousHost, previo
 		if (config.data) {
 			req.write(config.data);
 		}
-		req.end();
+		if (!config.delay) {
+			req.end();
+		}
 	} catch(e) {
 		console.error('Network Request Error: ', e, JSON.stringify(options));
 	}

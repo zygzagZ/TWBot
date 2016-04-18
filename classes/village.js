@@ -1,5 +1,5 @@
 var Villages = {};
-var KeepAliveAgent = include('classes/keep-alive-agent');
+var KeepAliveAgent = require('agentkeepalive').HttpsAgent;
 var units = ['spear', 'sword', 'axe', 'archer', 'spy', 'light', 'marcher', 'heavy', 'ram', 'catapult', 'knight', 'snob'];
 
 function Village(data, player) {
