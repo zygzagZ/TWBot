@@ -91,7 +91,7 @@ World.prototype = {
 		this.getVillage(data.village.id).extend(villageProperties.extend(true, data.village)); // copy only listed properties
 	},
 	parseInfo: function(str) {
-		var cs = str.indexOf('game_data = ')+12, ce = str.indexOf('};', cs)+1;
+		var cs = str.indexOf('TribalWars.updateGameData(')+26, ce = str.indexOf('});', cs)+1;
 		var data = JSON.parse(str.substr(cs, ce-cs));
 		this.onNewGameData(data);
 		
