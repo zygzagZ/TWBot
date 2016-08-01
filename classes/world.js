@@ -56,7 +56,7 @@ World.prototype = {
 				conf.commandList = [];
 			}
 			if (self.data.trophies) {
-				setTimeout(self.initTrophies.bind(this), rand(10000, 20000));
+				setTimeout(self.initTrophies.bind(self), rand(10000, 20000));
 			}
 			self.sendCommand();
 			setInterval(self.sendCommand.bind(self), 24*60*60000);
@@ -204,7 +204,7 @@ World.prototype = {
 			// TODO: check for bot verification
 			// TODO: check for account ban
 			// TODO: check for conservation works
-			if (str.toLowerCase().indexOf('ochrona botowa') > 0) {
+			if (str.toLowerCase().indexOf('data-bot-protect="forced">') > 0) {
 				console.log(self.trace, 'ANTI-BOT');
 				self.notify('Anti-Bot check.');
 				if (typeof config.error === 'function') {
